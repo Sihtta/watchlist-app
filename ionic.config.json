@@ -1,0 +1,7 @@
+{
+  "name": "watchlist-app",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
