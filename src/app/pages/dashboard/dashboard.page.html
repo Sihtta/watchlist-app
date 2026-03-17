@@ -1,0 +1,60 @@
+<ion-content [fullscreen]="true" class="dashboard-content">
+  <div class="dashboard-container">
+
+    <div class="header-block">
+      <h1>Tableau de bord</h1>
+      <p>Vue d'ensemble de votre visionnage</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card" *ngFor="let stat of stats">
+        <div class="stat-label">
+          <ion-icon [name]="stat.icon" [class]="stat.colorClass"></ion-icon>
+          <span>{{ stat.label }}</span>
+        </div>
+        <div class="stat-value">{{ stat.value }}</div>
+      </div>
+    </div>
+
+    <div class="add-section with-data" *ngIf="hasData">
+      <div class="add-text">Ajouter un film ou une série</div>
+      <button class="add-button" (click)="goToSearch()">
+        <ion-icon name="add-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="recent-section">
+      <h2>Activité récente</h2>
+
+      <div class="empty-state" *ngIf="!hasData">
+        <p>Aucune activité récente</p>
+
+        <div class="add-section no-data">
+          <div class="add-text">Ajouter un film ou une série</div>
+          <button class="add-button" (click)="goToSearch()">
+            <ion-icon name="add-outline"></ion-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="recent-list" *ngIf="hasData">
+        <div class="recent-card" *ngFor="let item of recentItems" (click)="goToDetail(item.id)">
+          <div class="recent-main">
+            <div class="recent-text">
+              <div class="recent-title">{{ item.title }}</div>
+              <div class="recent-subtitle" *ngIf="item.seasonLabel">{{ item.seasonLabel }}</div>
+              <div class="recent-progress" *ngIf="item.progressLabel">{{ item.progressLabel }}</div>
+            </div>
+
+            <div class="recent-status">
+              <span *ngIf="item.status === 'en-cours'">En cours</span>
+              <span *ngIf="item.status === 'vu'">Vu</span>
+              <span *ngIf="item.status === 'non-vu'">Non vu</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</ion-content>

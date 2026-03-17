@@ -1,0 +1,168 @@
+.dashboard-content {
+  --background: #f5f5f7;
+}
+
+.dashboard-container {
+  padding: 20px 16px 110px 16px;
+}
+
+.header-block {
+  margin-bottom: 18px;
+
+  h1 {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #111111;
+  }
+
+  p {
+    margin: 4px 0 0 0;
+    font-size: 0.82rem;
+    color: #8b8b95;
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px 14px 12px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #8c8c96;
+}
+
+.stat-label ion-icon {
+  font-size: 16px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111111;
+  line-height: 1;
+  margin-top: 8px;
+}
+
+.blue {
+  color: #4d8dff;
+}
+
+.green {
+  color: #62c97b;
+}
+
+.purple {
+  color: #b46cff;
+}
+
+.orange {
+  color: #ffb14d;
+}
+
+.recent-section {
+  margin-bottom: 26px;
+
+  h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #111111;
+  }
+}
+
+.empty-state {
+  color: #9b9ba3;
+  font-size: 0.9rem;
+  padding-top: 4px;
+
+  p {
+    margin: 0;
+    text-align: left;
+  }
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recent-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.recent-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111111;
+}
+
+.recent-subtitle {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: #8b8b95;
+}
+
+.add-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-section.with-data {
+  margin: 6px 0 24px 0;
+}
+
+.add-section.no-data {
+  margin-top: 18px;
+}
+
+.add-text {
+  font-size: 0.9rem;
+  color: #111111;
+}
+
+.add-button {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 999px;
+  background: #7a5bd0;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 14px rgba(122, 91, 208, 0.28);
+}
+
+.add-button ion-icon {
+  font-size: 24px;
+}
