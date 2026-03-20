@@ -1,13 +1,156 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>search</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="search-content">
+  <div class="search-container">
+    <h1>Recherche</h1>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">search</ion-title>
-    </ion-toolbar>
-  </ion-header>
+    <div class="search-bar">
+      <input
+        type="text"
+        [value]="query"
+        (input)="onSearchInput($event)"
+        placeholder="Tapez un nom de série/film"
+      />
+      <ion-icon name="search-outline"></ion-icon>
+    </div>
+
+    <div class="filters-header">
+      <button class="filter-icon-button" type="button" (click)="toggleFilters()">
+        <ion-icon name="funnel-outline"></ion-icon>
+      </button>
+
+      <button class="filters-button" type="button" (click)="toggleFilters()">
+        Filtres
+      </button>
+
+      <span class="active-filters" *ngIf="getActiveFiltersLabel()">
+        – {{ getActiveFiltersLabel() }}
+      </span>
+    </div>
+
+    @if (showFilters) {
+      <div class="filters-panel">
+        <div class="filter-group">
+          <div class="chips-row">
+            @for (filter of typeFilters; track filter) {
+              <button
+                class="chip"
+                [class.active]="selectedType === filter"
+                [class.light]="selectedType !== filter"
+                type="button"
+                (click)="selectType(filter)"
+              >
+                {{ filter }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="filter-note">
+          <span>Note minimum</span>
+
+          <div class="rating-filter-box">
+            <span class="current-rating">{{ minRating.toFixed(1) }}</span>
+
+            <input
+              class="real-slider"
+              type="range"
+              min="0"
+              max="10"
+              step="0.5"
+              [value]="minRating"
+              (input)="onMinRatingChange($event)"
+            />
+
+            <span class="slider-max">/10</span>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="chips-row multi">
+            @for (genre of genreFilters; track genre) {
+              <button
+                class="chip"
+                [class.active]="selectedGenre === genre"
+                [class.light]="selectedGenre !== genre"
+                type="button"
+                (click)="selectGenre(genre)"
+              >
+                {{ genre }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (loading) {
+      <div class="center-state">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    }
+
+    @if (!loading && filteredResults.length === 0) {
+      <div class="empty-state">
+        <h2>Aucun résultat trouvé</h2>
+        <p>
+          Réessayez avec un autre nom<br />
+          ou modifiez les filtres
+        </p>
+      </div>
+    }
+
+    @if (!loading && filteredResults.length > 0) {
+      <div class="section-title">
+        {{ query ? 'Résultats' : 'Tendances du moment' }}
+      </div>
+
+      <div class="results-grid">
+        @for (item of filteredResults; track item.id + '-' + item.mediaType) {
+          <div class="media-card">
+            <div class="poster-wrapper">
+              @if (item.posterUrl) {
+                <img [src]="item.posterUrl" [alt]="item.title" />
+              } @else {
+                <div class="poster-placeholder">
+                  <ion-icon name="image-outline"></ion-icon>
+                </div>
+              }
+
+              <div class="rating-badge">
+                <ion-icon name="star"></ion-icon>
+                <span>{{ item.rating }}</span>
+              </div>
+
+              <button
+                class="add-button"
+                [class.saved]="isAlreadySaved(item)"
+                type="button"
+                (click)="addMedia(item)"
+              >
+                <ion-icon [name]="isAlreadySaved(item) ? 'checkmark-outline' : 'add-outline'"></ion-icon>
+              </button>
+            </div>
+
+            <div class="card-footer">
+              <div class="title">{{ item.title }}</div>
+
+              <div class="genres-row">
+                @if (item.genres.length > 0) {
+                  <span class="genre-badge">{{ item.genres[0] }}</span>
+                } @else {
+                  <span class="genre-badge muted">{{ getTypeLabel(item.mediaType) }}</span>
+                }
+              </div>
+
+              <div class="bottom-row">
+                <span class="status-badge">À voir</span>
+                <span class="year-badge">
+                  {{ item.year || getTypeLabel(item.mediaType) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
 </ion-content>

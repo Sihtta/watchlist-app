@@ -1,13 +1,50 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>films</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content class="page-content">
+  <div class="container">
+    <h1>Vos Films</h1>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">films</ion-title>
-    </ion-toolbar>
-  </ion-header>
+    @if (movies.length === 0) {
+      <div class="empty">
+        <p>Aucun film dans votre catalogue</p>
+        <p>Ajoutez votre premier film<br />ou série depuis la recherche</p>
+
+        <button class="add-btn" (click)="goToSearch()">
+          +
+        </button>
+      </div>
+    }
+
+    @if (movies.length > 0) {
+      <div class="filters-row">
+        <button class="filter-chip active">Tous</button>
+        <button class="filter-chip">En Cours</button>
+        <button class="filter-chip">À voir</button>
+        <button class="filter-chip">Vu</button>
+      </div>
+      <div class="grid">
+        @for (movie of movies; track movie.id) {
+          <div class="card">
+
+            <div class="poster-wrapper">
+              <img [src]="movie.posterUrl" />
+
+              <!-- NOTE -->
+              <div class="rating">
+                ⭐ {{ movie.rating }}
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="title">{{ movie.title }}</div>
+
+              <div class="bottom">
+                <span class="status">À voir</span>
+                <span class="year">{{ movie.year }}</span>
+              </div>
+            </div>
+
+          </div>
+        }
+      </div>
+    }
+  </div>
 </ion-content>

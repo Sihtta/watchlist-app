@@ -24,10 +24,10 @@ export class WatchlistService {
   }
 
   async init(): Promise<void> {
-    const { value } = await Preferences.get({ key: this.STORAGE_KEY });
+  const { value } = await Preferences.get({ key: this.STORAGE_KEY });
 
-    if (value) {
-      this.mediaSubject.next(JSON.parse(value));
+  if (value) {
+    this.mediaSubject.next(JSON.parse(value));
     } else {
       const mockData: MediaItem[] = [
         {
@@ -51,7 +51,7 @@ export class WatchlistService {
             'Anthony Daniels'
           ],
           genres: ['Science-fiction', 'Action'],
-          synopsis: 'Traqués par l’Empire, les Rebelles fuient leur base sur Hoth. Luke part s’entraîner auprès du maître Jedi Yoda, tandis que Han Solo et Leia tentent d’échapper à Dark Vador.'
+          synopsis: 'Traqués par l’Empire...'
         },
         {
           id: '2',
@@ -60,7 +60,7 @@ export class WatchlistService {
           year: 2008,
           poster: 'assets/mock/breakingbad.jpg',
           status: 'en-cours',
-          updatedAt: new Date(Date.now() - 3600000).toISOString(),
+          updatedAt: new Date().toISOString(),
           seasonLabel: 'Saison 3',
           progressLabel: 'Épisode 7 / 12',
           episodeDuration: 50,
@@ -75,14 +75,18 @@ export class WatchlistService {
             'Bob Odenkirk'
           ],
           genres: ['Drame', 'Thriller'],
-          synopsis: 'Atteint d’un cancer, un professeur de chimie se lance dans la fabrication de drogue pour assurer l’avenir de sa famille.'
+          synopsis: 'Atteint d’un cancer...'
         }
       ];
 
       this.mediaSubject.next(mockData);
+
+      await Preferences.set({
+        key: this.STORAGE_KEY,
+        value: JSON.stringify(mockData)
+      });
     }
   }
-
   getDashboardStats(): DashboardStats {
     const items = this.mediaSubject.value;
 
@@ -117,6 +121,49 @@ export class WatchlistService {
   }
 
   hasData(): boolean {
-    return this.mediaSubject.value.length > 0;
+      return this.mediaSubject.value.length > 0;
+    }
+
+    addFromTmdb(result: {
+    id: number;
+    mediaType: 'movie' | 'tv';
+    title: string;
+    posterUrl: string | null;
+    year: string;
+  }): void {
+    const exists = this.mediaSubject.value.some(
+      item => item.id === String(result.id)
+    );
+
+    if (exists) {
+      return;
+    }
+
+    const newItem: MediaItem = {
+      id: String(result.id),
+      title: result.title,
+      type: result.mediaType === 'movie' ? 'film' : 'serie',
+      poster: result.posterUrl || undefined,
+      year: result.year ? Number(result.year) : undefined,
+      status: 'non-vu',
+      updatedAt: new Date().toISOString(),
+      watchedMinutes: 0,
+      watchedEpisodes: 0
+    };
+
+    const updated = [newItem, ...this.mediaSubject.value];
+    this.mediaSubject.next(updated);
+
+    Preferences.set({
+      key: this.STORAGE_KEY,
+      value: JSON.stringify(updated)
+    });
+  }
+
+  private async saveToStorage(): Promise<void> {
+    await Preferences.set({
+      key: this.STORAGE_KEY,
+      value: JSON.stringify(this.mediaSubject.value)
+    });
   }
 }

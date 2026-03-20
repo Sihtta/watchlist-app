@@ -1,16 +1,34 @@
 import { Component, OnInit } from '@angular/core';
+import { MediaStorageService, StoredMedia } from '../../services/media-storage.service';
+import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-films',
+  selector: 'app-movies',
   templateUrl: './films.page.html',
-  styleUrls: ['./films.page.scss'],
-  standalone: false
+  standalone: false,
+  styleUrls: ['./films.page.scss']
 })
 export class FilmsPage implements OnInit {
+  movies: StoredMedia[] = [];
 
-  constructor() { }
+  constructor(
+    private storage: MediaStorageService,
+    private router: Router
+  ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
+    this.load();
   }
 
+  ionViewWillEnter(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.movies = this.storage.getMovies();
+  }
+
+  goToSearch(): void {
+    this.router.navigate(['/tabs/search']);
+  }
 }
