@@ -105,7 +105,7 @@
 
       <div class="results-grid">
         @for (item of filteredResults; track item.id + '-' + item.mediaType) {
-          <div class="media-card">
+          <div class="media-card" (click)="goToDetail(item)">
             <div class="poster-wrapper">
               @if (item.posterUrl) {
                 <img [src]="item.posterUrl" [alt]="item.title" />
@@ -124,7 +124,7 @@
                 class="add-button"
                 [class.saved]="isAlreadySaved(item)"
                 type="button"
-                (click)="addMedia(item)"
+                (click)="addMedia($event, item)"
               >
                 <ion-icon [name]="isAlreadySaved(item) ? 'checkmark-outline' : 'add-outline'"></ion-icon>
               </button>

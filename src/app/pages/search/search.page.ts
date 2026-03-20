@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { TmdbService } from '../../services/tmdb.service';
 import { TmdbSearchResult } from '../../models/tmdb-search-result.model';
-import { MediaStorageService } from '../../services/media-storage.service';
+import { WatchlistService } from '../../services/watchlist';
 
 @Component({
   selector: 'app-search',
@@ -37,7 +38,8 @@ export class SearchPage implements OnInit {
 
   constructor(
     private tmdbService: TmdbService,
-    private storage: MediaStorageService
+    private watchlistService: WatchlistService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -106,7 +108,13 @@ export class SearchPage implements OnInit {
   }
 
   isAlreadySaved(item: TmdbSearchResult): boolean {
-    return this.storage.isSaved(item);
+    return this.watchlistService.isSavedTmdbItem(item);
+  }
+
+  goToDetail(item: TmdbSearchResult): void {
+    this.router.navigate(['/movie-detail', item.id], {
+      queryParams: { type: item.mediaType }
+    });
   }
 
   private loadDefaultMedia(): void {
@@ -145,12 +153,15 @@ export class SearchPage implements OnInit {
     });
   }
 
-  addMedia(item: TmdbSearchResult): void {
+  async addMedia(event: Event, item: TmdbSearchResult): Promise<void> {
+    event.stopPropagation();
+
     if (this.isAlreadySaved(item)) {
+      await this.watchlistService.removeTmdbItem(item);
       return;
     }
 
-    this.storage.add(item);
+    await this.watchlistService.addFromTmdb(item);
   }
 
   getActiveFiltersLabel(): string {

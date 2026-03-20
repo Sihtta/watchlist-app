@@ -38,19 +38,35 @@
       </div>
 
       <div class="recent-list" *ngIf="hasData">
-        <div class="recent-card" *ngFor="let item of recentItems" (click)="goToDetail(item.id)">
+        <div class="recent-card" *ngFor="let item of recentItems" (click)="goToDetail(item)">
           <div class="recent-main">
-            <div class="recent-text">
-              <div class="recent-title">{{ item.title }}</div>
-              <div class="recent-subtitle" *ngIf="item.seasonLabel">{{ item.seasonLabel }}</div>
-              <div class="recent-progress" *ngIf="item.progressLabel">{{ item.progressLabel }}</div>
+
+            <div class="recent-poster">
+              <img
+                [src]="item.poster || 'assets/mock/placeholder.jpg'"
+                [alt]="item.title"
+              />
             </div>
 
-            <div class="recent-status">
-              <span *ngIf="item.status === 'en-cours'">En cours</span>
-              <span *ngIf="item.status === 'vu'">Vu</span>
-              <span *ngIf="item.status === 'non-vu'">Non vu</span>
+            <div class="recent-body">
+              <div class="recent-top-row">
+                <div class="recent-text">
+                  <div class="recent-title">{{ item.title }}</div>
+                  <div class="recent-subtitle" *ngIf="getSubtitle(item)">
+                    {{ getSubtitle(item) }}
+                  </div>
+                </div>
+
+                <div class="recent-status">
+                  {{ getStatusLabel(item) }}
+                </div>
+              </div>
+
+              <div class="recent-progress" *ngIf="getProgressLabel(item)">
+                {{ getProgressLabel(item) }}
+              </div>
             </div>
+
           </div>
         </div>
       </div>

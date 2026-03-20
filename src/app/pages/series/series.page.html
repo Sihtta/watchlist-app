@@ -20,25 +20,39 @@
         <button class="filter-chip">À voir</button>
         <button class="filter-chip">Vu</button>
       </div>
+
       <div class="grid">
         @for (item of series; track item.id) {
-          <div class="card">
+          <div class="card" (click)="goToDetail(item)">
 
             <div class="poster-wrapper">
-              <img [src]="item.posterUrl" />
-
-              <div class="rating">
-                ⭐ {{ item.rating }}
-              </div>
+              <img [src]="item.poster || 'assets/mock/placeholder.jpg'" />
             </div>
 
             <div class="card-footer">
               <div class="title">{{ item.title }}</div>
 
               <div class="bottom">
-                <span class="status">À voir</span>
+                <span class="status">
+                  {{ item.status === 'en-cours' ? 'En cours' :
+                     item.status === 'vu' ? 'Vu' : 'À voir' }}
+                </span>
+
                 <span class="year">{{ item.year }}</span>
               </div>
+
+              @if (item.status === 'en-cours' && item.totalEpisodes) {
+                <div class="progress">
+                  Épisode {{ item.watchedEpisodes || 0 }} / {{ item.totalEpisodes }}
+                </div>
+              }
+
+              @if (item.seasonLabel) {
+                <div class="season">
+                  {{ item.seasonLabel }}
+                </div>
+              }
+
             </div>
 
           </div>

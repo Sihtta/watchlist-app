@@ -9,7 +9,11 @@
     </div>
 
     <div class="main-info">
-      <img class="poster" [src]="media.poster || 'assets/mock/placeholder.jpg'" [alt]="media.title">
+      <img
+        class="poster"
+        [src]="media.poster || 'assets/mock/placeholder.jpg'"
+        [alt]="media.title || 'Affiche'"
+      >
 
       <div class="main-text">
         <h2>{{ media.title }}</h2>
@@ -18,27 +22,44 @@
         <div class="section-label">Statut de visionnage</div>
 
         <div class="status-row">
-          <button class="status-item" [class.active]="media.status === 'en-cours'" (click)="setStatus('en-cours')">
+          <button
+            class="status-item"
+            [class.active]="media.status === 'en-cours'"
+            (click)="setStatus('en-cours')"
+          >
             En cours
           </button>
 
-          <button class="status-item" [class.active]="media.status === 'non-vu'" (click)="setStatus('non-vu')">
+          <button
+            class="status-item"
+            [class.active]="media.status === 'non-vu'"
+            (click)="setStatus('non-vu')"
+          >
             Non Vu
           </button>
 
-          <button class="status-item" [class.active]="media.status === 'vu'" (click)="setStatus('vu')">
+          <button
+            class="status-item"
+            [class.active]="media.status === 'vu'"
+            (click)="setStatus('vu')"
+          >
             Vu
           </button>
         </div>
 
         <div class="season-select" *ngIf="isSeries()">
           <div class="select-wrapper">
-            <ion-select interface="popover" [(ngModel)]="selectedSeason" (ionChange)="onSeasonChange()">
-              <ion-select-option value="Saison 1">Saison 1</ion-select-option>
-              <ion-select-option value="Saison 2">Saison 2</ion-select-option>
-              <ion-select-option value="Saison 3">Saison 3</ion-select-option>
-              <ion-select-option value="Saison 4">Saison 4</ion-select-option>
-              <ion-select-option value="Saison 5">Saison 5</ion-select-option>
+            <ion-select
+              interface="popover"
+              [(ngModel)]="selectedSeason"
+              (ionChange)="onSeasonChange()"
+            >
+              <ion-select-option
+                *ngFor="let season of seasonOptions"
+                [value]="season"
+              >
+                {{ season }}
+              </ion-select-option>
             </ion-select>
 
             <ion-icon name="chevron-down" class="custom-arrow"></ion-icon>
@@ -81,23 +102,23 @@
 
       <div class="info-line">
         <span class="info-title">Créateur</span>
-        <span class="info-value">{{ media.creator }}</span>
+        <span class="info-value">{{ media.creator || '—' }}</span>
       </div>
 
       <div class="info-line">
         <span class="info-title">Acteurs</span>
-        <span class="info-value">{{ getActorsText() }}</span>
+        <span class="info-value">{{ getActorsText() || '—' }}</span>
       </div>
 
       <div class="info-line">
         <span class="info-title">Genres</span>
-        <span class="info-value">{{ getGenresText() }}</span>
+        <span class="info-value">{{ getGenresText() || '—' }}</span>
       </div>
     </div>
 
     <div class="synopsis-section">
       <h3>Synopsis</h3>
-      <p>{{ media.synopsis }}</p>
+      <p>{{ media.synopsis || 'Aucun synopsis disponible.' }}</p>
     </div>
 
   </div>

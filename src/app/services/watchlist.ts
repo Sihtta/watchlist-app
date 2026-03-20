@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Preferences } from '@capacitor/preferences';
 import { MediaItem } from '../models/media.model';
+import { TmdbSearchResult } from '../models/tmdb-search-result.model';
 
 export interface DashboardStats {
   inProgress: number;
@@ -24,69 +25,29 @@ export class WatchlistService {
   }
 
   async init(): Promise<void> {
-  const { value } = await Preferences.get({ key: this.STORAGE_KEY });
+    const { value } = await Preferences.get({ key: this.STORAGE_KEY });
 
-  if (value) {
-    this.mediaSubject.next(JSON.parse(value));
-    } else {
-      const mockData: MediaItem[] = [
-        {
-          id: '1',
-          title: 'Star Wars V - L’Empire contre-attaque',
-          type: 'film',
-          year: 1980,
-          poster: 'assets/mock/starwars5.jpg',
-          status: 'en-cours',
-          updatedAt: new Date().toISOString(),
-          duration: 124,
-          totalMinutes: 124,
-          watchedMinutes: 88,
-          creator: 'Irvin Kershner',
-          actors: [
-            'Mark Hamill',
-            'Harrison Ford',
-            'Carrie Fisher',
-            'David Prowse',
-            'Billy Dee Williams',
-            'Anthony Daniels'
-          ],
-          genres: ['Science-fiction', 'Action'],
-          synopsis: 'Traqués par l’Empire...'
-        },
-        {
-          id: '2',
-          title: 'Breaking Bad',
-          type: 'serie',
-          year: 2008,
-          poster: 'assets/mock/breakingbad.jpg',
-          status: 'en-cours',
-          updatedAt: new Date().toISOString(),
-          seasonLabel: 'Saison 3',
-          progressLabel: 'Épisode 7 / 12',
-          episodeDuration: 50,
-          totalEpisodes: 12,
-          watchedEpisodes: 7,
-          creator: 'Vince Gilligan',
-          actors: [
-            'Bryan Cranston',
-            'Aaron Paul',
-            'Anna Gunn',
-            'Dean Norris',
-            'Bob Odenkirk'
-          ],
-          genres: ['Drame', 'Thriller'],
-          synopsis: 'Atteint d’un cancer...'
-        }
-      ];
+    if (!value) {
+      this.mediaSubject.next([]);
+      return;
+    }
 
-      this.mediaSubject.next(mockData);
+    try {
+      const parsedItems: MediaItem[] = JSON.parse(value);
+      const cleanedItems = this.removeLegacyMockItems(parsedItems);
 
-      await Preferences.set({
-        key: this.STORAGE_KEY,
-        value: JSON.stringify(mockData)
-      });
+      this.mediaSubject.next(cleanedItems);
+
+      if (cleanedItems.length !== parsedItems.length) {
+        await this.saveToStorage();
+      }
+    } catch (error) {
+      console.error('Erreur lecture watchlist :', error);
+      this.mediaSubject.next([]);
+      await this.saveToStorage();
     }
   }
+
   getDashboardStats(): DashboardStats {
     const items = this.mediaSubject.value;
 
@@ -108,29 +69,49 @@ export class WatchlistService {
     return this.mediaSubject.value.find(item => item.id === id);
   }
 
+  getSeries(): MediaItem[] {
+    return this.mediaSubject.value.filter(item => item.type === 'serie');
+  }
+
+  getFilms(): MediaItem[] {
+    return this.mediaSubject.value.filter(item => item.type === 'film');
+  }
+
+  isSavedTmdbItem(item: TmdbSearchResult): boolean {
+    return this.mediaSubject.value.some(
+      media => media.id === String(item.id)
+    );
+  }
+
+  async removeTmdbItem(item: TmdbSearchResult): Promise<void> {
+    const updated = this.mediaSubject.value.filter(
+      media => media.id !== String(item.id)
+    );
+
+    this.mediaSubject.next(updated);
+    await this.saveToStorage();
+  }
+
   async updateMedia(updatedItem: MediaItem): Promise<void> {
     const updated = this.mediaSubject.value.map(item =>
       item.id === updatedItem.id ? updatedItem : item
     );
 
     this.mediaSubject.next(updated);
-    await Preferences.set({
-      key: this.STORAGE_KEY,
-      value: JSON.stringify(updated)
-    });
+    await this.saveToStorage();
   }
 
   hasData(): boolean {
-      return this.mediaSubject.value.length > 0;
-    }
+    return this.mediaSubject.value.length > 0;
+  }
 
-    addFromTmdb(result: {
+  async addFromTmdb(result: {
     id: number;
     mediaType: 'movie' | 'tv';
     title: string;
     posterUrl: string | null;
     year: string;
-  }): void {
+  }): Promise<void> {
     const exists = this.mediaSubject.value.some(
       item => item.id === String(result.id)
     );
@@ -144,19 +125,29 @@ export class WatchlistService {
       title: result.title,
       type: result.mediaType === 'movie' ? 'film' : 'serie',
       poster: result.posterUrl || undefined,
-      year: result.year ? Number(result.year) : undefined,
+      year: result.year || undefined,
       status: 'non-vu',
       updatedAt: new Date().toISOString(),
       watchedMinutes: 0,
-      watchedEpisodes: 0
+      watchedEpisodes: 0,
+      totalMinutes: 0,
+      totalEpisodes: 0,
+      seasonLabel: result.mediaType === 'tv' ? 'Saison 1' : undefined
     };
 
     const updated = [newItem, ...this.mediaSubject.value];
     this.mediaSubject.next(updated);
+    await this.saveToStorage();
+  }
 
-    Preferences.set({
-      key: this.STORAGE_KEY,
-      value: JSON.stringify(updated)
+  private removeLegacyMockItems(items: MediaItem[]): MediaItem[] {
+    return items.filter(item => {
+      const isLegacyMockPoster = item.poster?.startsWith('assets/mock/');
+      const isLegacyMockTitle =
+        item.title === 'Star Wars V - L’Empire contre-attaque' ||
+        item.title === 'Breaking Bad';
+
+      return !isLegacyMockPoster && !isLegacyMockTitle;
     });
   }
 

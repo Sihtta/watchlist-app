@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
-import { MediaStorageService, StoredMedia } from '../../services/media-storage.service';
 import { Router } from '@angular/router';
+import { MediaItem } from '../../models/media.model';
+import { WatchlistService } from '../../services/watchlist';
 
 @Component({
   selector: 'app-movies',
@@ -9,15 +10,19 @@ import { Router } from '@angular/router';
   styleUrls: ['./films.page.scss']
 })
 export class FilmsPage implements OnInit {
-  movies: StoredMedia[] = [];
+  movies: MediaItem[] = [];
 
   constructor(
-    private storage: MediaStorageService,
+    private watchlistService: WatchlistService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.load();
+
+    this.watchlistService.media$.subscribe(() => {
+      this.load();
+    });
   }
 
   ionViewWillEnter(): void {
@@ -25,10 +30,16 @@ export class FilmsPage implements OnInit {
   }
 
   load(): void {
-    this.movies = this.storage.getMovies();
+    this.movies = this.watchlistService.getFilms();
   }
 
   goToSearch(): void {
     this.router.navigate(['/tabs/search']);
+  }
+
+  goToDetail(movie: MediaItem): void {
+    this.router.navigate(['/movie-detail', movie.id], {
+      queryParams: { type: 'movie' }
+    });
   }
 }

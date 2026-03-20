@@ -202,4 +202,26 @@ export class TmdbService {
 
     return date.slice(0, 4);
   }
+
+  getMovieDetails(id: string): Observable<any> {
+    const params = new HttpParams()
+      .set('language', 'fr-FR')
+      .set('append_to_response', 'credits');
+
+    return this.http.get<any>(`${this.apiUrl}/movie/${id}`, {
+      headers: this.buildHeaders(),
+      params
+    });
+  }
+
+  getTvDetails(id: string): Observable<any> {
+    const params = new HttpParams()
+      .set('language', 'fr-FR')
+      .set('append_to_response', 'credits');
+
+    return this.http.get<any>(`${this.apiUrl}/tv/${id}`, {
+      headers: this.buildHeaders(),
+      params
+    });
+  }
 }

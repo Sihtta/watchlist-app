@@ -1,7 +1,10 @@
 import { Component, OnInit } from '@angular/core';
+import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { MediaItem, MediaStatus } from '../../models/media.model';
 import { WatchlistService } from '../../services/watchlist';
+import { TmdbService } from '../../services/tmdb.service';
 
 @Component({
   selector: 'app-movie-detail',
@@ -10,36 +13,66 @@ import { WatchlistService } from '../../services/watchlist';
   standalone: false
 })
 export class MovieDetailPage implements OnInit {
-
   media?: MediaItem;
   selectedSeason = '';
+  seasonOptions: string[] = [];
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private watchlistService: WatchlistService
+    private watchlistService: WatchlistService,
+    private tmdbService: TmdbService,
+    private location: Location
   ) {}
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
+    const typeParam = this.route.snapshot.queryParamMap.get('type');
 
-    if (!id) {
+    if (!id || !typeParam) {
       this.router.navigate(['/tabs/dashboard']);
       return;
     }
 
-    const foundMedia = this.watchlistService.getMediaById(id);
+    try {
+      const localMedia = this.watchlistService.getMediaById(id);
 
-    if (!foundMedia) {
+      let apiMedia: MediaItem | null = null;
+
+      if (typeParam === 'movie') {
+        const details = await firstValueFrom(this.tmdbService.getMovieDetails(id));
+        apiMedia = this.mapMovieDetailsToMediaItem(details);
+      } else if (typeParam === 'tv') {
+        const details = await firstValueFrom(this.tmdbService.getTvDetails(id));
+        apiMedia = this.mapTvDetailsToMediaItem(details);
+      }
+
+      if (!apiMedia) {
+        this.router.navigate(['/tabs/dashboard']);
+        return;
+      }
+
+      this.media = this.mergeApiAndLocalData(apiMedia, localMedia);
+      this.buildSeasonOptions();
+
+      this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
+
+      if (localMedia) {
+        this.media.updatedAt = new Date().toISOString();
+        await this.watchlistService.updateMedia(this.media);
+      }
+    } catch (error) {
+      console.error('Erreur chargement détails média :', error);
       this.router.navigate(['/tabs/dashboard']);
-      return;
     }
-
-    this.media = { ...foundMedia };
-    this.selectedSeason = this.media.seasonLabel || 'Saison 1';
   }
 
   goBack(): void {
+    if (window.history.length > 1) {
+      this.location.back();
+      return;
+    }
+
     this.router.navigate(['/tabs/dashboard']);
   }
 
@@ -132,7 +165,6 @@ export class MovieDetailPage implements OnInit {
       const total = this.media.totalMinutes || this.media.duration || 0;
       const current = this.media.watchedMinutes || 0;
       this.media.watchedMinutes = Math.min(total, current + 1);
-
       this.updateStatusFromFilmProgress(total);
     }
 
@@ -140,7 +172,6 @@ export class MovieDetailPage implements OnInit {
       const total = this.media.totalEpisodes || 0;
       const current = this.media.watchedEpisodes || 0;
       this.media.watchedEpisodes = Math.min(total, current + 1);
-
       this.updateStatusFromSeriesProgress(total);
     }
 
@@ -148,9 +179,12 @@ export class MovieDetailPage implements OnInit {
     await this.watchlistService.updateMedia(this.media);
   }
 
-  onSeasonChange(): void {
+  async onSeasonChange(): Promise<void> {
     if (!this.media) return;
+
     this.media.seasonLabel = this.selectedSeason;
+    this.media.updatedAt = new Date().toISOString();
+    await this.watchlistService.updateMedia(this.media);
   }
 
   private updateStatusFromFilmProgress(total: number): void {
@@ -179,5 +213,89 @@ export class MovieDetailPage implements OnInit {
     } else {
       this.media.status = 'en-cours';
     }
+  }
+
+  private buildSeasonOptions(): void {
+    if (!this.media || !this.isSeries()) {
+      this.seasonOptions = [];
+      return;
+    }
+
+    const seasonCount = this.media.totalSeasons || 0;
+    this.seasonOptions = Array.from(
+      { length: seasonCount },
+      (_, i) => `Saison ${i + 1}`
+    );
+  }
+
+  private mergeApiAndLocalData(apiMedia: MediaItem, localMedia?: MediaItem): MediaItem {
+    if (!localMedia) {
+      return {
+        ...apiMedia,
+        status: apiMedia.status || 'non-vu',
+        watchedMinutes: apiMedia.watchedMinutes || 0,
+        watchedEpisodes: apiMedia.watchedEpisodes || 0,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    return {
+      ...apiMedia,
+      status: localMedia.status,
+      watchedMinutes: localMedia.watchedMinutes,
+      watchedEpisodes: localMedia.watchedEpisodes,
+      seasonLabel: localMedia.seasonLabel,
+      updatedAt: localMedia.updatedAt
+    };
+  }
+
+  private mapMovieDetailsToMediaItem(details: any): MediaItem {
+    const director = details.credits?.crew?.find((person: any) => person.job === 'Director');
+
+    return {
+      id: String(details.id),
+      type: 'film',
+      title: details.title || 'Sans titre',
+      poster: details.poster_path
+        ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
+        : 'assets/mock/placeholder.jpg',
+      year: details.release_date ? new Date(details.release_date).getFullYear().toString() : '',
+      synopsis: details.overview || '',
+      duration: details.runtime || 0,
+      totalMinutes: details.runtime || 0,
+      creator: director?.name || '',
+      actors: (details.credits?.cast || []).slice(0, 5).map((actor: any) => actor.name),
+      genres: (details.genres || []).map((genre: any) => genre.name),
+      status: 'non-vu',
+      watchedMinutes: 0,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  private mapTvDetailsToMediaItem(details: any): MediaItem {
+    const avgEpisodeDuration = details.episode_run_time?.length
+      ? details.episode_run_time[0]
+      : 0;
+
+    return {
+      id: String(details.id),
+      type: 'serie',
+      title: details.name || 'Sans titre',
+      poster: details.poster_path
+        ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
+        : 'assets/mock/placeholder.jpg',
+      year: details.first_air_date ? new Date(details.first_air_date).getFullYear().toString() : '',
+      synopsis: details.overview || '',
+      episodeDuration: avgEpisodeDuration,
+      totalEpisodes: details.number_of_episodes || 0,
+      totalSeasons: details.number_of_seasons || 0,
+      creator: (details.created_by || []).map((c: any) => c.name).join(', '),
+      actors: (details.credits?.cast || []).slice(0, 5).map((actor: any) => actor.name),
+      genres: (details.genres || []).map((genre: any) => genre.name),
+      status: 'non-vu',
+      watchedEpisodes: 0,
+      seasonLabel: details.number_of_seasons > 0 ? 'Saison 1' : '',
+      updatedAt: new Date().toISOString()
+    };
   }
 }

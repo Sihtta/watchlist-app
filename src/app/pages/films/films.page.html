@@ -20,26 +20,33 @@
         <button class="filter-chip">À voir</button>
         <button class="filter-chip">Vu</button>
       </div>
+
       <div class="grid">
         @for (movie of movies; track movie.id) {
-          <div class="card">
+          <div class="card" (click)="goToDetail(movie)">
 
             <div class="poster-wrapper">
-              <img [src]="movie.posterUrl" />
-
-              <!-- NOTE -->
-              <div class="rating">
-                ⭐ {{ movie.rating }}
-              </div>
+              <img [src]="movie.poster || 'assets/mock/placeholder.jpg'" />
             </div>
 
             <div class="card-footer">
               <div class="title">{{ movie.title }}</div>
 
               <div class="bottom">
-                <span class="status">À voir</span>
+                <span class="status">
+                  {{ movie.status === 'en-cours' ? 'En cours' :
+                     movie.status === 'vu' ? 'Vu' : 'À voir' }}
+                </span>
+
                 <span class="year">{{ movie.year }}</span>
               </div>
+
+              @if (movie.status === 'en-cours' && movie.totalMinutes) {
+                <div class="progress">
+                  {{ movie.watchedMinutes || 0 }} / {{ movie.totalMinutes }} min
+                </div>
+              }
+
             </div>
 
           </div>

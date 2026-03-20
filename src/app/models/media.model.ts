@@ -6,7 +6,8 @@ export interface MediaItem {
   title: string;
   type: MediaType;
   poster?: string;
-  year?: number;
+
+  year?: string; 
 
   status: MediaStatus;
   updatedAt: string;
@@ -22,6 +23,7 @@ export interface MediaItem {
 
   totalEpisodes?: number;
   watchedEpisodes?: number;
+  totalSeasons?: number; 
 
   creator?: string;
   actors?: string[];

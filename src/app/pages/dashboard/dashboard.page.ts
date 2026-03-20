@@ -17,7 +17,6 @@ interface StatCard {
   standalone: false
 })
 export class DashboardPage implements OnInit {
-
   stats: StatCard[] = [];
   recentItems: MediaItem[] = [];
   hasData = true;
@@ -52,7 +51,43 @@ export class DashboardPage implements OnInit {
     this.router.navigate(['/tabs/search']);
   }
 
-  goToDetail(id: string): void {
-    this.router.navigate(['/movie-detail', id]);
+  goToDetail(item: MediaItem): void {
+    const tmdbType = item.type === 'film' ? 'movie' : 'tv';
+
+    this.router.navigate(['/movie-detail', item.id], {
+      queryParams: { type: tmdbType }
+    });
+  }
+
+  getStatusLabel(item: MediaItem): string {
+    if (item.status === 'en-cours') {
+      return 'En cours';
+    }
+
+    if (item.status === 'vu') {
+      return 'Vu';
+    }
+
+    return 'Non vu';
+  }
+
+  getSubtitle(item: MediaItem): string {
+    if (item.type === 'serie' && item.seasonLabel) {
+      return item.seasonLabel;
+    }
+
+    return item.type === 'film' ? 'Film' : 'Série';
+  }
+
+  getProgressLabel(item: MediaItem): string {
+    if (item.type === 'serie' && item.totalEpisodes) {
+      return `Épisode ${item.watchedEpisodes || 0} / ${item.totalEpisodes}`;
+    }
+
+    if (item.type === 'film' && item.totalMinutes) {
+      return `${item.watchedMinutes || 0} / ${item.totalMinutes} min`;
+    }
+
+    return '';
   }
 }
