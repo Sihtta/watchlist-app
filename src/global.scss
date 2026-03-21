@@ -35,3 +35,33 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+ion-popover {
+  --width: 170px;
+  --max-width: 170px;
+}
+
+ion-popover ion-select-popover {
+  --background: #ffffff;
+}
+
+ion-popover ion-item {
+  --min-height: 36px;
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+  font-size: 0.95rem;
+}
+
+ion-popover ion-radio {
+  --color: #cfcfe6;
+  --color-checked: #7a5bd0;
+}
+
+ion-popover ion-label {
+  color: #111111;
+}
+
+ion-popover .item-radio-checked ion-label {
+  color: #7a5bd0;
+  font-weight: 600;
+}

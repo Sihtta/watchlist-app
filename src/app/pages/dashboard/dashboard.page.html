@@ -1,76 +1,86 @@
 <ion-content [fullscreen]="true" class="dashboard-content">
   <div class="dashboard-container">
-
     <div class="header-block">
       <h1>Tableau de bord</h1>
       <p>Vue d'ensemble de votre visionnage</p>
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card" *ngFor="let stat of stats">
-        <div class="stat-label">
-          <ion-icon [name]="stat.icon" [class]="stat.colorClass"></ion-icon>
-          <span>{{ stat.label }}</span>
+      @for (stat of stats; track stat) {
+        <div class="stat-card">
+          <div class="stat-label">
+            <ion-icon [name]="stat.icon" [class]="stat.colorClass"></ion-icon>
+            <span>{{ stat.label }}</span>
+          </div>
+          <div class="stat-value">{{ stat.value }}</div>
         </div>
-        <div class="stat-value">{{ stat.value }}</div>
-      </div>
+      }
     </div>
 
-    <div class="add-section with-data" *ngIf="hasData">
-      <div class="add-text">Ajouter un film ou une série</div>
-      <button class="add-button" (click)="goToSearch()">
-        <ion-icon name="add-outline"></ion-icon>
-      </button>
-    </div>
+    @if (hasData) {
+      <div class="add-section with-data">
+        <div class="add-text">Ajouter un film ou une série</div>
+        <button class="add-button" (click)="goToSearch()">
+          <ion-icon name="add-outline"></ion-icon>
+        </button>
+      </div>
+    }
 
     <div class="recent-section">
       <h2>Activité récente</h2>
+      @if (!hasData) {
+        <div class="empty-state">
+          <p>Aucune activité récente</p>
 
-      <div class="empty-state" *ngIf="!hasData">
-        <p>Aucune activité récente</p>
-
-        <div class="add-section no-data">
-          <div class="add-text">Ajouter un film ou une série</div>
-          <button class="add-button" (click)="goToSearch()">
-            <ion-icon name="add-outline"></ion-icon>
-          </button>
-        </div>
-      </div>
-
-      <div class="recent-list" *ngIf="hasData">
-        <div class="recent-card" *ngFor="let item of recentItems" (click)="goToDetail(item)">
-          <div class="recent-main">
-
-            <div class="recent-poster">
-              <img
-                [src]="item.poster || 'assets/mock/placeholder.jpg'"
-                [alt]="item.title"
-              />
-            </div>
-
-            <div class="recent-body">
-              <div class="recent-top-row">
-                <div class="recent-text">
-                  <div class="recent-title">{{ item.title }}</div>
-                  <div class="recent-subtitle" *ngIf="getSubtitle(item)">
-                    {{ getSubtitle(item) }}
-                  </div>
-                </div>
-
-                <div class="recent-status">
-                  {{ getStatusLabel(item) }}
-                </div>
-              </div>
-
-              <div class="recent-progress" *ngIf="getProgressLabel(item)">
-                {{ getProgressLabel(item) }}
-              </div>
-            </div>
-
+          <div class="add-section no-data">
+            <div class="add-text">Ajouter un film ou une série</div>
+            <button class="add-button" (click)="goToSearch()">
+              <ion-icon name="add-outline"></ion-icon>
+            </button>
           </div>
         </div>
-      </div>
-    </div>
+      }
 
+      @if (hasData) {
+        <div class="recent-list">
+          @for (item of recentItems; track item.id) {
+            <div class="recent-card" (click)="goToDetail(item)">
+              <div class="recent-main">
+
+                <div class="recent-poster">
+                  <img
+                    [src]="item.poster || 'assets/mock/placeholder.jpg'"
+                    [alt]="item.title"
+                  />
+                </div>
+
+                <div class="recent-body">
+                  <div class="recent-top-row">
+                    <div class="recent-text">
+                      <div class="recent-title">{{ item.title }}</div>
+
+                      @if (getSubtitle(item)) {
+                        <div class="recent-subtitle">
+                          {{ getSubtitle(item) }}
+                        </div>
+                      }
+                    </div>
+                    <div class="recent-status">
+                      {{ getStatusLabel(item) }}
+                    </div>
+                  </div>
+
+                  @if (getProgressLabel(item)) {
+                    <div class="recent-progress">
+                      {{ getProgressLabel(item) }}
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
   </div>
 </ion-content>

@@ -1,19 +1,21 @@
-<ion-content *ngIf="media" [fullscreen]="true" class="detail-content">
+@if (media) {
+<ion-content [fullscreen]="true" class="detail-content">
   <div class="detail-container">
-
     <div class="top-bar">
-      <button class="back-btn" (click)="goBack()">
-        <ion-icon name="arrow-back-outline"></ion-icon>
+      <div class="left-group">
+        <button class="back-btn" (click)="goBack()">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1>Détails</h1>
+      </div>
+
+      <button class="home-btn" (click)="goToDashboard()">
+        <ion-icon name="home-outline"></ion-icon>
       </button>
-      <h1>Détails</h1>
     </div>
 
     <div class="main-info">
-      <img
-        class="poster"
-        [src]="media.poster || 'assets/mock/placeholder.jpg'"
-        [alt]="media.title || 'Affiche'"
-      >
+      <img class="poster" [src]="media.poster || 'assets/mock/placeholder.jpg'" [alt]="media.title">
 
       <div class="main-text">
         <h2>{{ media.title }}</h2>
@@ -22,63 +24,78 @@
         <div class="section-label">Statut de visionnage</div>
 
         <div class="status-row">
-          <button
-            class="status-item"
-            [class.active]="media.status === 'en-cours'"
-            (click)="setStatus('en-cours')"
-          >
+          <button class="status-item" [class.active]="media.status === 'en-cours'" (click)="setStatus('en-cours')">
             En cours
           </button>
 
-          <button
-            class="status-item"
-            [class.active]="media.status === 'non-vu'"
-            (click)="setStatus('non-vu')"
-          >
+          <button class="status-item" [class.active]="media.status === 'non-vu'" (click)="setStatus('non-vu')">
             Non Vu
           </button>
 
-          <button
-            class="status-item"
-            [class.active]="media.status === 'vu'"
-            (click)="setStatus('vu')"
-          >
+          <button class="status-item" [class.active]="media.status === 'vu'" (click)="setStatus('vu')">
             Vu
           </button>
         </div>
 
-        <div class="season-select" *ngIf="isSeries()">
+        @if (isSeries()) {
+        <div class="season-select">
           <div class="select-wrapper">
             <ion-select
               interface="popover"
               [(ngModel)]="selectedSeason"
               (ionChange)="onSeasonChange()"
             >
-              <ion-select-option
-                *ngFor="let season of seasonOptions"
-                [value]="season"
-              >
-                {{ season }}
-              </ion-select-option>
+              @for (season of seasonOptions; track season) {
+                <ion-select-option [value]="season">
+                  {{ season }}
+                </ion-select-option>
+              }
             </ion-select>
-
             <ion-icon name="chevron-down" class="custom-arrow"></ion-icon>
           </div>
         </div>
+        }
 
         <div class="progress-box">
           <button class="progress-btn" (click)="decreaseProgress()">
             <ion-icon name="remove-outline"></ion-icon>
           </button>
 
-          <div class="progress-text" *ngIf="isFilm()">
-            Minutes {{ media.watchedMinutes || 0 }} / {{ media.totalMinutes || 0 }}
-          </div>
+          @if (isFilm()) {
+            <div class="progress-center">
+              <span class="progress-label">Minute</span>
 
-          <div class="progress-text" *ngIf="isSeries()">
-            Épisode {{ media.watchedEpisodes || 0 }} / {{ media.totalEpisodes || 0 }}
-          </div>
+              <input
+                class="progress-input"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                [max]="media.totalMinutes || 0"
+                [ngModel]="media.watchedMinutes || 0"
+                (ngModelChange)="onDirectProgressChange($event)"
+              />
 
+              <span class="progress-total">/ {{ media.totalMinutes || 0 }}</span>
+            </div>
+          }
+
+          @if (isSeries()) {
+            <div class="progress-center">
+              <span class="progress-label">Épisode</span>
+
+              <input
+                class="progress-input"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                [max]="media.totalEpisodes || 0"
+                [ngModel]="media.watchedEpisodes || 0"
+                (ngModelChange)="onDirectProgressChange($event)"
+              />
+
+              <span class="progress-total">/ {{ media.totalEpisodes || 0 }}</span>
+            </div>
+          }
           <button class="progress-btn" (click)="increaseProgress()">
             <ion-icon name="add-outline"></ion-icon>
           </button>
@@ -88,11 +105,16 @@
 
     <div class="info-section">
       <h3>Informations</h3>
-
       <div class="info-line">
         <span class="info-title">Durée</span>
-        <span class="info-value" *ngIf="isFilm()">{{ media.duration }} minutes</span>
-        <span class="info-value" *ngIf="isSeries()">{{ media.episodeDuration }} minutes par épisode</span>
+
+        @if (isFilm()) {
+          <span class="info-value">{{ media.duration }} minutes</span>
+        }
+
+        @if (isSeries()) {
+          <span class="info-value">{{ media.episodeDuration }} minutes par épisode</span>
+        }
       </div>
 
       <div class="info-line">
@@ -102,24 +124,24 @@
 
       <div class="info-line">
         <span class="info-title">Créateur</span>
-        <span class="info-value">{{ media.creator || '—' }}</span>
+        <span class="info-value">{{ media.creator }}</span>
       </div>
 
       <div class="info-line">
         <span class="info-title">Acteurs</span>
-        <span class="info-value">{{ getActorsText() || '—' }}</span>
+        <span class="info-value">{{ getActorsText() }}</span>
       </div>
 
       <div class="info-line">
         <span class="info-title">Genres</span>
-        <span class="info-value">{{ getGenresText() || '—' }}</span>
+        <span class="info-value">{{ getGenresText() }}</span>
       </div>
     </div>
 
     <div class="synopsis-section">
       <h3>Synopsis</h3>
-      <p>{{ media.synopsis || 'Aucun synopsis disponible.' }}</p>
+      <p>{{ media.synopsis }}</p>
     </div>
-
   </div>
 </ion-content>
+}

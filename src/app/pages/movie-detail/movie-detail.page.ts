@@ -76,6 +76,10 @@ export class MovieDetailPage implements OnInit {
     this.router.navigate(['/tabs/dashboard']);
   }
 
+  goToDashboard(): void {
+    this.router.navigate(['/tabs/dashboard']);
+  }
+
   isSeries(): boolean {
     return this.media?.type === 'serie';
   }
@@ -297,5 +301,30 @@ export class MovieDetailPage implements OnInit {
       seasonLabel: details.number_of_seasons > 0 ? 'Saison 1' : '',
       updatedAt: new Date().toISOString()
     };
+  }
+
+  async onDirectProgressChange(value: string | number): Promise<void> {
+    if (!this.media) return;
+
+    const numericValue = Number(value);
+
+    if (Number.isNaN(numericValue)) {
+      return;
+    }
+
+    if (this.isFilm()) {
+      const total = this.media.totalMinutes || this.media.duration || 0;
+      this.media.watchedMinutes = Math.max(0, Math.min(total, numericValue));
+      this.updateStatusFromFilmProgress(total);
+    }
+
+    if (this.isSeries()) {
+      const total = this.media.totalEpisodes || 0;
+      this.media.watchedEpisodes = Math.max(0, Math.min(total, numericValue));
+      this.updateStatusFromSeriesProgress(total);
+    }
+
+    this.media.updatedAt = new Date().toISOString();
+    await this.watchlistService.updateMedia(this.media);
   }
 }

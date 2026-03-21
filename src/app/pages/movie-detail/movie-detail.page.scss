@@ -4,18 +4,41 @@
 
 .detail-container {
   padding: 18px 14px 24px;
+  max-width: 420px;
 }
 
 .top-bar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
   margin-bottom: 14px;
+}
 
-  h1 {
-    margin: 0;
-    font-size: 1.35rem;
-    font-weight: 700;
+.left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-bar h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.home-btn {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  ion-icon {
+    font-size: 22px;
     color: #111111;
   }
 }
@@ -76,6 +99,7 @@
   display: flex;
   gap: 10px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .status-item {
@@ -97,8 +121,8 @@
   .select-wrapper {
     position: relative;
     display: inline-block;
-    border-radius: 20px;      
-    overflow: hidden;         
+    border-radius: 20px;
+    overflow: hidden;
   }
 
   .custom-arrow {
@@ -108,14 +132,13 @@
     transform: translateY(-50%);
     font-size: 16px;
     color: white;
-    z-index: 10;            
+    z-index: 10;
     pointer-events: none;
   }
 
-    ion-select::part(icon) {
-        display: none;
-    }
-
+  ion-select::part(icon) {
+    display: none;
+  }
 
   ion-select {
     --background: #7a5bd0;
@@ -123,11 +146,10 @@
     --placeholder-color: white;
     --padding-start: 10px;
     --padding-end: 30px;
-
     height: 30px;
     min-height: 30px;
-
     font-size: 0.8rem;
+    border-radius: 20px;
   }
 }
 
@@ -145,6 +167,7 @@
   border: none;
   background: transparent;
   height: 100%;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,26 +182,56 @@
   border-left: 1px solid #7a5bd0;
 }
 
-.progress-left,
-.progress-right {
+.progress-center {
+  min-width: 0;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #7a5bd0;
+  gap: 6px;
+  padding: 0 8px;
+  background: transparent;
 }
 
-.progress-left {
-  border-right: 1px solid #7a5bd0;
+.progress-label,
+.progress-total {
+  font-size: 0.85rem;
+  color: #111111;
+  white-space: nowrap;
 }
 
-.progress-right {
-  border-left: 1px solid #7a5bd0;
-}
-
-.progress-text {
+.progress-input {
+  width: 54px;
+  min-width: 54px;
+  border: none;
+  background: transparent !important;
   text-align: center;
-  font-size: 0.76rem;
-  color: #111;
+  font-size: 0.85rem;
+  color: #111111;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.progress-input:focus,
+.progress-input:active {
+  background: transparent !important;
+  outline: none;
+  box-shadow: none;
+}
+
+.progress-input::-webkit-outer-spin-button,
+.progress-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.progress-input::selection {
+  background: rgba(122, 91, 208, 0.15);
+  color: #111111;
 }
 
 .info-section,
@@ -216,4 +269,5 @@
   font-size: 0.76rem;
   line-height: 1.45;
   color: #444;
+  text-align: justify;
 }
