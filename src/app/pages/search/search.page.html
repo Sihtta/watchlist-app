@@ -21,9 +21,11 @@
         Filtres
       </button>
 
-      <span class="active-filters" *ngIf="getActiveFiltersLabel()">
-        – {{ getActiveFiltersLabel() }}
-      </span>
+      @if (getActiveFiltersLabel()) {
+        <span class="active-filters">
+          – {{ getActiveFiltersLabel() }}
+        </span>
+      }
     </div>
 
     @if (showFilters) {
@@ -100,7 +102,13 @@
 
     @if (!loading && filteredResults.length > 0) {
       <div class="section-title">
-        {{ query ? 'Résultats' : 'Tendances du moment' }}
+        {{
+          query
+            ? 'Résultats'
+            : hasActiveFilters()
+              ? 'Résultats filtrés'
+              : 'Tendances du moment'
+        }}
       </div>
 
       <div class="results-grid">

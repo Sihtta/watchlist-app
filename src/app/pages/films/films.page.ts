@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { MediaItem } from '../../models/media.model';
+import { TmdbSearchResult } from '../../models/tmdb-search-result.model';
 import { WatchlistService } from '../../services/watchlist';
 
 @Component({
@@ -11,6 +12,7 @@ import { WatchlistService } from '../../services/watchlist';
 })
 export class FilmsPage implements OnInit {
   movies: MediaItem[] = [];
+  selectedStatus: 'Tous' | 'en-cours' | 'non-vu' | 'vu' = 'Tous';
 
   constructor(
     private watchlistService: WatchlistService,
@@ -29,6 +31,18 @@ export class FilmsPage implements OnInit {
     this.load();
   }
 
+  get filteredMovies(): MediaItem[] {
+    if (this.selectedStatus === 'Tous') {
+      return this.movies;
+    }
+
+    return this.movies.filter(movie => movie.status === this.selectedStatus);
+  }
+
+  selectStatus(status: 'Tous' | 'en-cours' | 'non-vu' | 'vu'): void {
+    this.selectedStatus = status;
+  }
+
   load(): void {
     this.movies = this.watchlistService.getFilms();
   }
@@ -41,5 +55,21 @@ export class FilmsPage implements OnInit {
     this.router.navigate(['/movie-detail', movie.id], {
       queryParams: { type: 'movie' }
     });
+  }
+
+  async toggleSaved(event: Event, movie: MediaItem): Promise<void> {
+    event.stopPropagation();
+
+    const item: TmdbSearchResult = {
+      id: Number(movie.id),
+      mediaType: 'movie',
+      title: movie.title,
+      posterUrl: movie.poster || null,
+      rating: 0,
+      year: movie.year || '',
+      genres: []
+    };
+
+    await this.watchlistService.removeTmdbItem(item);
   }
 }

@@ -80,6 +80,18 @@ export class TmdbService {
     37: 'Aventure'
   };
 
+  private readonly genreToTmdbId: Record<string, number> = {
+    Action: 28,
+    Aventure: 12,
+    Animation: 16,
+    Comédie: 35,
+    Horreur: 27,
+    Romance: 10749,
+    Policier: 80,
+    Fantastique: 14,
+    'Science-fiction': 878
+  };
+
   constructor(private http: HttpClient) {}
 
   searchMedia(query: string): Observable<TmdbSearchResult[]> {
@@ -223,5 +235,110 @@ export class TmdbService {
       headers: this.buildHeaders(),
       params
     });
+  }
+
+    discoverMedia(
+    selectedType: string,
+    selectedGenre: string,
+    minRating: number
+  ): Observable<TmdbSearchResult[]> {
+    const genreId = this.genreToTmdbId[selectedGenre];
+
+    const buildMovieParams = (): HttpParams => {
+      let params = new HttpParams()
+        .set('language', 'fr-FR')
+        .set('include_adult', 'false')
+        .set('sort_by', 'popularity.desc')
+        .set('vote_count.gte', '100');
+
+      if (genreId) {
+        params = params.set('with_genres', String(genreId));
+      }
+
+      if (minRating > 0) {
+        params = params.set('vote_average.gte', String(minRating));
+      }
+
+      return params;
+    };
+
+    const buildTvParams = (): HttpParams => {
+      let params = new HttpParams()
+        .set('language', 'fr-FR')
+        .set('sort_by', 'popularity.desc')
+        .set('vote_count.gte', '100');
+
+      if (genreId) {
+        params = params.set('with_genres', String(genreId));
+      }
+
+      if (minRating > 0) {
+        params = params.set('vote_average.gte', String(minRating));
+      }
+
+      return params;
+    };
+
+    if (selectedType === 'Film') {
+      return this.http
+        .get<TmdbDiscoverResponse>(`${this.apiUrl}/discover/movie`, {
+          headers: this.buildHeaders(),
+          params: buildMovieParams()
+        })
+        .pipe(
+          map(response =>
+            response.results.map(item =>
+              this.mapMediaItem({ ...item, media_type: 'movie' })
+            )
+          )
+        );
+    }
+
+    if (selectedType === 'Série') {
+      return this.http
+        .get<TmdbDiscoverResponse>(`${this.apiUrl}/discover/tv`, {
+          headers: this.buildHeaders(),
+          params: buildTvParams()
+        })
+        .pipe(
+          map(response =>
+            response.results.map(item =>
+              this.mapMediaItem({ ...item, media_type: 'tv' })
+            )
+          )
+        );
+    }
+
+    const movieRequest = this.http.get<TmdbDiscoverResponse>(
+      `${this.apiUrl}/discover/movie`,
+      {
+        headers: this.buildHeaders(),
+        params: buildMovieParams()
+      }
+    );
+
+    const tvRequest = this.http.get<TmdbDiscoverResponse>(
+      `${this.apiUrl}/discover/tv`,
+      {
+        headers: this.buildHeaders(),
+        params: buildTvParams()
+      }
+    );
+
+    return forkJoin([movieRequest, tvRequest]).pipe(
+      map(([movies, series]) => {
+        const mappedMovies = movies.results.map(item =>
+          this.mapMediaItem({ ...item, media_type: 'movie' })
+        );
+
+        const mappedSeries = series.results.map(item =>
+          this.mapMediaItem({ ...item, media_type: 'tv' })
+        );
+
+        return [...mappedMovies, ...mappedSeries].sort(
+          (a, b) => b.rating - a.rating
+        );
+      })
+    );
   }
 }

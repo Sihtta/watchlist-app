@@ -43,7 +43,7 @@ export class SearchPage implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.loadDefaultMedia();
+    this.refreshMedia();
   }
 
   onSearchInput(event: Event): void {
@@ -53,7 +53,7 @@ export class SearchPage implements OnInit {
     this.query = value;
 
     if (value.length === 0) {
-      this.loadDefaultMedia();
+      this.refreshMedia();
       return;
     }
 
@@ -89,17 +89,35 @@ export class SearchPage implements OnInit {
 
   selectType(filter: string): void {
     this.selectedType = filter;
+
+    if (this.query.length === 0) {
+      this.refreshMedia();
+      return;
+    }
+
     this.applyFilters();
   }
 
   selectGenre(genre: string): void {
     this.selectedGenre = genre;
+
+    if (this.query.length === 0) {
+      this.refreshMedia();
+      return;
+    }
+
     this.applyFilters();
   }
 
   onMinRatingChange(event: Event): void {
     const input = event.target as HTMLInputElement | null;
     this.minRating = Number(input?.value ?? 0);
+
+    if (this.query.length === 0) {
+      this.refreshMedia();
+      return;
+    }
+
     this.applyFilters();
   }
 
@@ -115,6 +133,43 @@ export class SearchPage implements OnInit {
     this.router.navigate(['/movie-detail', item.id], {
       queryParams: { type: item.mediaType }
     });
+  }
+
+  hasActiveFilters(): boolean {
+    return (
+      this.selectedType !== 'Tous' ||
+      this.selectedGenre !== 'Tous' ||
+      this.minRating > 0
+    );
+  }
+
+   private refreshMedia(): void {
+    if (this.hasActiveFilters()) {
+      this.loading = true;
+      this.hasSearched = false;
+
+      this.tmdbService.discoverMedia(
+        this.selectedType,
+        this.selectedGenre,
+        this.minRating
+      ).subscribe({
+        next: data => {
+          this.allResults = data;
+          this.filteredResults = data;
+          this.loading = false;
+        },
+        error: error => {
+          console.error('Erreur TMDB :', error);
+          this.allResults = [];
+          this.filteredResults = [];
+          this.loading = false;
+        }
+      });
+
+      return;
+    }
+
+    this.loadDefaultMedia();
   }
 
   private loadDefaultMedia(): void {

@@ -169,3 +169,26 @@ h1 {
 .filter-chip.active {
   background: #7a5bd0;
 }
+
+.add-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(122, 91, 208, 0.35);
+
+  ion-icon {
+    font-size: 18px;
+  }
+}
+
+.add-button.saved {
+  background: #4caf50;
+}

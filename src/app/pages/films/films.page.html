@@ -15,18 +15,56 @@
 
     @if (movies.length > 0) {
       <div class="filters-row">
-        <button class="filter-chip active">Tous</button>
-        <button class="filter-chip">En Cours</button>
-        <button class="filter-chip">À voir</button>
-        <button class="filter-chip">Vu</button>
+        <button
+          class="filter-chip"
+          [class.active]="selectedStatus === 'Tous'"
+          type="button"
+          (click)="selectStatus('Tous')"
+        >
+          Tous
+        </button>
+
+        <button
+          class="filter-chip"
+          [class.active]="selectedStatus === 'en-cours'"
+          type="button"
+          (click)="selectStatus('en-cours')"
+        >
+          En Cours
+        </button>
+
+        <button
+          class="filter-chip"
+          [class.active]="selectedStatus === 'non-vu'"
+          type="button"
+          (click)="selectStatus('non-vu')"
+        >
+          À voir
+        </button>
+
+        <button
+          class="filter-chip"
+          [class.active]="selectedStatus === 'vu'"
+          type="button"
+          (click)="selectStatus('vu')"
+        >
+          Vu
+        </button>
       </div>
 
       <div class="grid">
-        @for (movie of movies; track movie.id) {
+        @for (movie of filteredMovies; track movie.id) {
           <div class="card" (click)="goToDetail(movie)">
-
             <div class="poster-wrapper">
               <img [src]="movie.poster || 'assets/mock/placeholder.jpg'" />
+
+              <button
+                class="add-button saved"
+                type="button"
+                (click)="toggleSaved($event, movie)"
+              >
+                <ion-icon name="checkmark-outline"></ion-icon>
+              </button>
             </div>
 
             <div class="card-footer">
@@ -46,9 +84,7 @@
                   {{ movie.watchedMinutes || 0 }} / {{ movie.totalMinutes }} min
                 </div>
               }
-
             </div>
-
           </div>
         }
       </div>
