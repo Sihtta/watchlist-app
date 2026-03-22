@@ -237,6 +237,15 @@ export class TmdbService {
     });
   }
 
+  getTvSeasonDetails(seriesId: string, seasonNumber: number): Observable<any> {
+  const params = new HttpParams().set('language', 'fr-FR');
+
+  return this.http.get<any>(`${this.apiUrl}/tv/${seriesId}/season/${seasonNumber}`, {
+    headers: this.buildHeaders(),
+    params
+  });
+}
+
     discoverMedia(
     selectedType: string,
     selectedGenre: string,

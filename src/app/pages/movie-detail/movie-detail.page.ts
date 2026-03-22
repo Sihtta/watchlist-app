@@ -57,6 +57,10 @@ export class MovieDetailPage implements OnInit {
 
       this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
 
+      if (this.isSeries()) {
+        await this.loadSelectedSeasonEpisodeCount();
+      }
+
       if (localMedia) {
         this.media.updatedAt = new Date().toISOString();
         await this.watchlistService.updateMedia(this.media);
@@ -187,8 +191,10 @@ export class MovieDetailPage implements OnInit {
     if (!this.media) return;
 
     this.media.seasonLabel = this.selectedSeason;
+    this.media.watchedEpisodes = 0;
     this.media.updatedAt = new Date().toISOString();
-    await this.watchlistService.updateMedia(this.media);
+
+    await this.loadSelectedSeasonEpisodeCount();
   }
 
   private updateStatusFromFilmProgress(total: number): void {
@@ -230,6 +236,47 @@ export class MovieDetailPage implements OnInit {
       { length: seasonCount },
       (_, i) => `Saison ${i + 1}`
     );
+  }
+
+  private getSelectedSeasonNumber(): number {
+    const match = this.selectedSeason.match(/\d+/);
+    return match ? Number(match[0]) : 1;
+  }
+
+  private async loadSelectedSeasonEpisodeCount(): Promise<void> {
+    if (!this.media || !this.isSeries()) return;
+
+    const seasonNumber = this.getSelectedSeasonNumber();
+
+    try {
+      const seasonDetails = await firstValueFrom(
+        this.tmdbService.getTvSeasonDetails(this.media.id, seasonNumber)
+      );
+
+      const episodeCount =
+        seasonDetails.episodes?.length ||
+        seasonDetails.episode_count ||
+        0;
+
+      this.media.totalEpisodes = episodeCount;
+
+      if (!this.media.seasonEpisodeCounts) {
+        this.media.seasonEpisodeCounts = {};
+      }
+
+      this.media.seasonEpisodeCounts[this.selectedSeason] = episodeCount;
+
+      if ((this.media.watchedEpisodes || 0) > episodeCount) {
+        this.media.watchedEpisodes = episodeCount;
+      }
+
+      this.updateStatusFromSeriesProgress(episodeCount);
+
+      this.media.updatedAt = new Date().toISOString();
+      await this.watchlistService.updateMedia(this.media);
+    } catch (error) {
+      console.error('Erreur chargement saison :', error);
+    }
   }
 
   private mergeApiAndLocalData(apiMedia: MediaItem, localMedia?: MediaItem): MediaItem {
