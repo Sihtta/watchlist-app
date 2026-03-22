@@ -13,7 +13,6 @@ export interface MediaItem {
   updatedAt: string;
 
   seasonLabel?: string;
-  progressLabel?: string;
 
   duration?: number;
   episodeDuration?: number;
@@ -24,7 +23,6 @@ export interface MediaItem {
   totalEpisodes?: number;
   watchedEpisodes?: number;
   totalSeasons?: number;
-  seasonEpisodeCounts?: Record<string, number>;
 
   creator?: string;
   actors?: string[];

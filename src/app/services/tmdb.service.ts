@@ -133,46 +133,6 @@ export class TmdbService {
       );
   }
 
-  getPopularMedia(): Observable<TmdbSearchResult[]> {
-    const movieRequest = this.http.get<TmdbDiscoverResponse>(
-      `${this.apiUrl}/discover/movie`,
-      {
-        headers: this.buildHeaders(),
-        params: new HttpParams()
-          .set('language', 'fr-FR')
-          .set('include_adult', 'false')
-          .set('sort_by', 'popularity.desc')
-          .set('vote_count.gte', '200')
-      }
-    );
-
-    const tvRequest = this.http.get<TmdbDiscoverResponse>(
-      `${this.apiUrl}/discover/tv`,
-      {
-        headers: this.buildHeaders(),
-        params: new HttpParams()
-          .set('language', 'fr-FR')
-          .set('sort_by', 'popularity.desc')
-          .set('vote_count.gte', '100')
-      }
-    );
-
-    return forkJoin([movieRequest, tvRequest]).pipe(
-      map(([movies, series]) => {
-        const mappedMovies = movies.results.map(item =>
-          this.mapMediaItem({ ...item, media_type: 'movie' })
-        );
-        const mappedSeries = series.results.map(item =>
-          this.mapMediaItem({ ...item, media_type: 'tv' })
-        );
-
-        return [...mappedMovies, ...mappedSeries]
-          .sort((a, b) => b.rating - a.rating)
-          .slice(0, 20);
-      })
-    );
-  }
-
   private buildHeaders(): HttpHeaders {
     return new HttpHeaders({
       Authorization: `Bearer ${environment.tmdbReadToken}`

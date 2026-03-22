@@ -260,12 +260,6 @@ export class MovieDetailPage implements OnInit {
 
       this.media.totalEpisodes = episodeCount;
 
-      if (!this.media.seasonEpisodeCounts) {
-        this.media.seasonEpisodeCounts = {};
-      }
-
-      this.media.seasonEpisodeCounts[this.selectedSeason] = episodeCount;
-
       if ((this.media.watchedEpisodes || 0) > episodeCount) {
         this.media.watchedEpisodes = episodeCount;
       }
