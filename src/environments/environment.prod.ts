@@ -1,3 +1,4 @@
 export const environment = {
-  production: true
+  production: true,
+  tmdbReadToken: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJiNTY2YWU0ZGMxY2VjMWVmNWEzMzkwZGUwNmYyZDQ1MiIsIm5iZiI6MTc3NDAxNzA1NS4yOCwic3ViIjoiNjliZDVhMWY3YzRlYTIzYTgxMDZlNzU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.mQK23EtZB_0IFubfg90pm6XHEGOj6ouCBQOxsePNJ3c'
 };

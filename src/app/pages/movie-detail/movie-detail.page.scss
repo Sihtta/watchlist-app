@@ -111,8 +111,8 @@
 }
 
 .status-item.active {
-  color: #7a5bd0;
-  border-bottom: 2px solid #7a5bd0;
+  color: var(--ion-color-primary);
+  border-bottom: 2px solid var(--ion-color-primary);
 }
 
 .season-select {
@@ -141,7 +141,7 @@
   }
 
   ion-select {
-    --background: #7a5bd0;
+    --background: var(--ion-color-primary);
     --color: white;
     --placeholder-color: white;
     --padding-start: 10px;
@@ -154,7 +154,7 @@
 }
 
 .progress-box {
-  border: 1px solid #7a5bd0;
+  border: 1px solid var(--ion-color-primary);
   border-radius: 8px;
   min-height: 36px;
   display: grid;
@@ -171,15 +171,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #7a5bd0;
+  color: var(--ion-color-primary);
 }
 
 .progress-btn:first-child {
-  border-right: 1px solid #7a5bd0;
+  border-right: 1px solid var(--ion-color-primary);
 }
 
 .progress-btn:last-child {
-  border-left: 1px solid #7a5bd0;
+  border-left: 1px solid var(--ion-color-primary);
 }
 
 .progress-center {
@@ -230,7 +230,7 @@
 }
 
 .progress-input::selection {
-  background: rgba(122, 91, 208, 0.15);
+  background: rgba(var(--ion-color-primary-rgb), 0.15);
   color: #111111;
 }
 

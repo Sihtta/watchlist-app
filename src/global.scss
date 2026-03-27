@@ -54,7 +54,7 @@ ion-popover ion-item {
 
 ion-popover ion-radio {
   --color: #cfcfe6;
-  --color-checked: #7a5bd0;
+  --color-checked: var(--ion-color-primary);
 }
 
 ion-popover ion-label {
@@ -62,6 +62,6 @@ ion-popover ion-label {
 }
 
 ion-popover .item-radio-checked ion-label {
-  color: #7a5bd0;
+  color: var(--ion-color-primary);
   font-weight: 600;
 }

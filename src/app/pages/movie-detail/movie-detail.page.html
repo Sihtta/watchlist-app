@@ -107,14 +107,7 @@
       <h3>Informations</h3>
       <div class="info-line">
         <span class="info-title">Durée</span>
-
-        @if (isFilm()) {
-          <span class="info-value">{{ media.duration }} minutes</span>
-        }
-
-        @if (isSeries()) {
-          <span class="info-value">{{ media.episodeDuration }} minutes par épisode</span>
-        }
+        <span class="info-value">{{ getDurationText() }}</span>
       </div>
 
       <div class="info-line">
@@ -124,7 +117,7 @@
 
       <div class="info-line">
         <span class="info-title">Créateur</span>
-        <span class="info-value">{{ media.creator }}</span>
+        <span class="info-value">{{ getCreatorText() }}</span>
       </div>
 
       <div class="info-line">
@@ -140,7 +133,7 @@
 
     <div class="synopsis-section">
       <h3>Synopsis</h3>
-      <p>{{ media.synopsis }}</p>
+      <p>{{ getSynopsisText() }}</p>
     </div>
   </div>
 </ion-content>

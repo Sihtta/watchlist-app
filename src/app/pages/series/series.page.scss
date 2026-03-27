@@ -64,7 +64,7 @@ h1 {
   right: 6px;
   width: 26px;
   height: 26px;
-  background: #7a5bd0;
+  background: var(--ion-color-primary);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -138,11 +138,11 @@ h1 {
   height: 50px;
   border-radius: 50%;
   border: none;
-  background: #7a5bd0;
+  background: var(--ion-color-primary);
   color: white;
   font-size: 26px;
   font-weight: bold;
-  box-shadow: 0 6px 14px rgba(122, 91, 208, 0.3);
+  box-shadow: 0 6px 14px rgba(var(--ion-color-primary-rgb), 0.3);
 }
 
 .filters-row {
@@ -167,7 +167,7 @@ h1 {
 }
 
 .filter-chip.active {
-  background: #7a5bd0;
+  background: var(--ion-color-primary);
 }
 
 .add-button {
@@ -182,7 +182,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(122, 91, 208, 0.35);
+  box-shadow: 0 4px 10px rgba(var(--ion-color-primary-rgb), 0.35);
 
   ion-icon {
     font-size: 18px;

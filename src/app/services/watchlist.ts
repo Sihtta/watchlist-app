@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
 import { Preferences } from '@capacitor/preferences';
+import { BehaviorSubject } from 'rxjs';
 import { MediaItem } from '../models/media.model';
 import { TmdbSearchResult } from '../models/tmdb-search-result.model';
 
@@ -24,6 +24,7 @@ export class WatchlistService {
     this.init();
   }
 
+  // Charge la watchlist sauvegardee au demarrage de l'application.
   async init(): Promise<void> {
     const { value } = await Preferences.get({ key: this.STORAGE_KEY });
 
@@ -34,20 +35,14 @@ export class WatchlistService {
 
     try {
       const parsedItems: MediaItem[] = JSON.parse(value);
-      const cleanedItems = this.removeLegacyMockItems(parsedItems);
-
-      this.mediaSubject.next(cleanedItems);
-
-      if (cleanedItems.length !== parsedItems.length) {
-        await this.saveToStorage();
-      }
+      this.mediaSubject.next(parsedItems);
     } catch (error) {
       console.error('Erreur lecture watchlist :', error);
-      this.mediaSubject.next([]);
-      await this.saveToStorage();
+      await this.setMediaItems([]);
     }
   }
 
+  // Calcule les statistiques affichees sur le dashboard.
   getDashboardStats(): DashboardStats {
     const items = this.mediaSubject.value;
 
@@ -59,6 +54,7 @@ export class WatchlistService {
     };
   }
 
+  // Retourne les medias les plus recents selon leur date de mise a jour.
   getRecentActivity(limit: number = 5): MediaItem[] {
     return [...this.mediaSubject.value]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -83,28 +79,29 @@ export class WatchlistService {
     );
   }
 
+  // Supprime un media TMDB deja present dans la watchlist.
   async removeTmdbItem(item: TmdbSearchResult): Promise<void> {
     const updated = this.mediaSubject.value.filter(
       media => media.id !== String(item.id)
     );
 
-    this.mediaSubject.next(updated);
-    await this.saveToStorage();
+    await this.setMediaItems(updated);
   }
 
+  // Met a jour un media existant dans la watchlist.
   async updateMedia(updatedItem: MediaItem): Promise<void> {
     const updated = this.mediaSubject.value.map(item =>
       item.id === updatedItem.id ? updatedItem : item
     );
 
-    this.mediaSubject.next(updated);
-    await this.saveToStorage();
+    await this.setMediaItems(updated);
   }
 
   hasData(): boolean {
     return this.mediaSubject.value.length > 0;
   }
 
+  // Ajoute un nouveau media TMDB dans la watchlist locale.
   async addFromTmdb(result: {
     id: number;
     mediaType: 'movie' | 'tv';
@@ -135,22 +132,16 @@ export class WatchlistService {
       seasonLabel: result.mediaType === 'tv' ? 'Saison 1' : undefined
     };
 
-    const updated = [newItem, ...this.mediaSubject.value];
-    this.mediaSubject.next(updated);
+    await this.setMediaItems([newItem, ...this.mediaSubject.value]);
+  }
+
+  // Met a jour l'etat local puis sauvegarde la watchlist.
+  private async setMediaItems(items: MediaItem[]): Promise<void> {
+    this.mediaSubject.next(items);
     await this.saveToStorage();
   }
 
-  private removeLegacyMockItems(items: MediaItem[]): MediaItem[] {
-    return items.filter(item => {
-      const isLegacyMockPoster = item.poster?.startsWith('assets/mock/');
-      const isLegacyMockTitle =
-        item.title === 'Star Wars V - L’Empire contre-attaque' ||
-        item.title === 'Breaking Bad';
-
-      return !isLegacyMockPoster && !isLegacyMockTitle;
-    });
-  }
-
+  // Enregistre la watchlist dans le stockage local de l'application.
   private async saveToStorage(): Promise<void> {
     await Preferences.set({
       key: this.STORAGE_KEY,

@@ -211,12 +211,12 @@
   height: 46px;
   border: none;
   border-radius: 999px;
-  background: #7a5bd0;
+  background: var(--ion-color-primary);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 14px rgba(122, 91, 208, 0.28);
+  box-shadow: 0 6px 14px rgba(var(--ion-color-primary-rgb), 0.28);
 }
 
 .add-button ion-icon {

@@ -1,10 +1,10 @@
-import { Component, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MediaItem, MediaStatus } from '../../models/media.model';
-import { WatchlistService } from '../../services/watchlist';
 import { TmdbService } from '../../services/tmdb.service';
+import { WatchlistService } from '../../services/watchlist';
 
 @Component({
   selector: 'app-movie-detail',
@@ -13,6 +13,7 @@ import { TmdbService } from '../../services/tmdb.service';
   standalone: false
 })
 export class MovieDetailPage implements OnInit {
+  readonly missingInfoText = 'Aucune information trouvée';
   media?: MediaItem;
   selectedSeason = '';
   seasonOptions: string[] = [];
@@ -25,49 +26,37 @@ export class MovieDetailPage implements OnInit {
     private location: Location
   ) {}
 
+  // Charge les donnees du media et initialise l'etat de la page.
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
     const typeParam = this.route.snapshot.queryParamMap.get('type');
 
     if (!id || !typeParam) {
-      this.router.navigate(['/tabs/dashboard']);
+      this.redirectToDashboard();
       return;
     }
 
     try {
       const localMedia = this.watchlistService.getMediaById(id);
-
-      let apiMedia: MediaItem | null = null;
-
-      if (typeParam === 'movie') {
-        const details = await firstValueFrom(this.tmdbService.getMovieDetails(id));
-        apiMedia = this.mapMovieDetailsToMediaItem(details);
-      } else if (typeParam === 'tv') {
-        const details = await firstValueFrom(this.tmdbService.getTvDetails(id));
-        apiMedia = this.mapTvDetailsToMediaItem(details);
-      }
+      const apiMedia = await this.loadApiMedia(id, typeParam);
 
       if (!apiMedia) {
-        this.router.navigate(['/tabs/dashboard']);
+        this.redirectToDashboard();
         return;
       }
 
       this.media = this.mergeApiAndLocalData(apiMedia, localMedia);
       this.buildSeasonOptions();
-
       this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
 
       if (this.isSeries()) {
         await this.loadSelectedSeasonEpisodeCount();
-      }
-
-      if (localMedia) {
-        this.media.updatedAt = new Date().toISOString();
-        await this.watchlistService.updateMedia(this.media);
+      } else if (localMedia) {
+        await this.persistMedia();
       }
     } catch (error) {
       console.error('Erreur chargement détails média :', error);
-      this.router.navigate(['/tabs/dashboard']);
+      this.redirectToDashboard();
     }
   }
 
@@ -77,11 +66,11 @@ export class MovieDetailPage implements OnInit {
       return;
     }
 
-    this.router.navigate(['/tabs/dashboard']);
+    this.redirectToDashboard();
   }
 
   goToDashboard(): void {
-    this.router.navigate(['/tabs/dashboard']);
+    this.redirectToDashboard();
   }
 
   isSeries(): boolean {
@@ -93,148 +82,215 @@ export class MovieDetailPage implements OnInit {
   }
 
   getActorsText(): string {
-    return this.media?.actors?.join(', ') || '';
+    return this.getJoinedTextOrFallback(this.media?.actors);
   }
 
   getGenresText(): string {
-    return this.media?.genres?.join(', ') || '';
+    return this.getJoinedTextOrFallback(this.media?.genres);
   }
 
+  getCreatorText(): string {
+    return this.getTextOrFallback(this.media?.creator);
+  }
+
+  getSynopsisText(): string {
+    return this.getTextOrFallback(this.media?.synopsis);
+  }
+
+  // Retourne le texte de duree a afficher selon le type de media.
+  getDurationText(): string {
+    if (!this.media) {
+      return this.missingInfoText;
+    }
+
+    const duration = this.isFilm()
+      ? this.media.duration || this.media.totalMinutes || 0
+      : this.media.episodeDuration || 0;
+
+    if (duration <= 0) {
+      return this.missingInfoText;
+    }
+
+    return this.isFilm()
+      ? `${duration} minutes`
+      : `${duration} minutes par épisode (moyenne)`;
+  }
+
+  // Met a jour le statut du media et ajuste sa progression.
   async setStatus(status: MediaStatus): Promise<void> {
     if (!this.media) return;
 
     this.media.status = status;
-
-    if (this.isFilm()) {
-      const total = this.media.totalMinutes || this.media.duration || 0;
-
-      if (status === 'vu') {
-        this.media.watchedMinutes = total;
-      } else if (status === 'non-vu') {
-        this.media.watchedMinutes = 0;
-      } else {
-        if ((this.media.watchedMinutes || 0) <= 0 && total > 0) {
-          this.media.watchedMinutes = 1;
-        }
-        if ((this.media.watchedMinutes || 0) >= total && total > 0) {
-          this.media.watchedMinutes = total - 1;
-        }
-      }
-    }
-
-    if (this.isSeries()) {
-      const total = this.media.totalEpisodes || 0;
-
-      if (status === 'vu') {
-        this.media.watchedEpisodes = total;
-      } else if (status === 'non-vu') {
-        this.media.watchedEpisodes = 0;
-      } else {
-        if ((this.media.watchedEpisodes || 0) <= 0 && total > 0) {
-          this.media.watchedEpisodes = 1;
-        }
-        if ((this.media.watchedEpisodes || 0) >= total && total > 0) {
-          this.media.watchedEpisodes = total - 1;
-        }
-      }
-    }
-
-    this.media.updatedAt = new Date().toISOString();
-    await this.watchlistService.updateMedia(this.media);
+    this.applyStatusToProgress(status, this.getProgressTotal());
+    await this.persistMedia();
   }
 
   async decreaseProgress(): Promise<void> {
-    if (!this.media) return;
-
-    if (this.isFilm()) {
-      const current = this.media.watchedMinutes || 0;
-      this.media.watchedMinutes = Math.max(0, current - 1);
-
-      const total = this.media.totalMinutes || this.media.duration || 0;
-      this.updateStatusFromFilmProgress(total);
-    }
-
-    if (this.isSeries()) {
-      const current = this.media.watchedEpisodes || 0;
-      this.media.watchedEpisodes = Math.max(0, current - 1);
-
-      const total = this.media.totalEpisodes || 0;
-      this.updateStatusFromSeriesProgress(total);
-    }
-
-    this.media.updatedAt = new Date().toISOString();
-    await this.watchlistService.updateMedia(this.media);
+    await this.changeProgress(-1);
   }
 
   async increaseProgress(): Promise<void> {
+    await this.changeProgress(1);
+  }
+
+  // Change la saison suivie et recharge les informations associees.
+  async onSeasonChange(): Promise<void> {
+    if (!this.media || !this.isSeries()) return;
+
+    this.media.seasonLabel = this.selectedSeason;
+    this.media.watchedEpisodes = 0;
+    await this.loadSelectedSeasonEpisodeCount();
+  }
+
+  async onDirectProgressChange(value: string | number): Promise<void> {
     if (!this.media) return;
 
-    if (this.isFilm()) {
-      const total = this.media.totalMinutes || this.media.duration || 0;
-      const current = this.media.watchedMinutes || 0;
-      this.media.watchedMinutes = Math.min(total, current + 1);
-      this.updateStatusFromFilmProgress(total);
+    const numericValue = Number(value);
+
+    if (Number.isNaN(numericValue)) {
+      return;
     }
 
-    if (this.isSeries()) {
-      const total = this.media.totalEpisodes || 0;
-      const current = this.media.watchedEpisodes || 0;
-      this.media.watchedEpisodes = Math.min(total, current + 1);
-      this.updateStatusFromSeriesProgress(total);
+    const total = this.getProgressTotal();
+    this.setWatchedProgress(this.clampProgress(numericValue, total));
+    this.updateStatusFromProgress(total);
+    await this.persistMedia();
+  }
+
+  // Charge les details du media depuis TMDB selon son type.
+  private async loadApiMedia(id: string, typeParam: string): Promise<MediaItem | null> {
+    if (typeParam === 'movie') {
+      const details = await firstValueFrom(this.tmdbService.getMovieDetails(id));
+      return this.mapMovieDetailsToMediaItem(details);
+    }
+
+    if (typeParam === 'tv') {
+      const details = await firstValueFrom(this.tmdbService.getTvDetails(id));
+      return this.mapTvDetailsToMediaItem(details);
+    }
+
+    return null;
+  }
+
+  private redirectToDashboard(): void {
+    this.router.navigate(['/tabs/dashboard']);
+  }
+
+  // Modifie la progression courante puis met a jour le statut.
+  private async changeProgress(delta: number): Promise<void> {
+    if (!this.media) return;
+
+    const total = this.getProgressTotal();
+    const nextValue = this.getWatchedProgress() + delta;
+
+    this.setWatchedProgress(this.clampProgress(nextValue, total));
+    this.updateStatusFromProgress(total);
+    await this.persistMedia();
+  }
+
+  // Retourne la progression totale possible pour le media.
+  private getProgressTotal(): number {
+    if (!this.media) {
+      return 0;
+    }
+
+    return this.isFilm()
+      ? this.media.totalMinutes || this.media.duration || 0
+      : this.media.totalEpisodes || 0;
+  }
+
+  // Retourne la progression actuellement enregistree pour le media.
+  private getWatchedProgress(): number {
+    if (!this.media) {
+      return 0;
+    }
+
+    return this.isFilm()
+      ? this.media.watchedMinutes || 0
+      : this.media.watchedEpisodes || 0;
+  }
+
+  // Met a jour la progression du media selon son type.
+  private setWatchedProgress(value: number): void {
+    if (!this.media) {
+      return;
+    }
+
+    if (this.isFilm()) {
+      this.media.watchedMinutes = value;
+      return;
+    }
+
+    this.media.watchedEpisodes = value;
+  }
+
+  private applyStatusToProgress(status: MediaStatus, total: number): void {
+    if (status === 'vu') {
+      this.setWatchedProgress(total);
+      return;
+    }
+
+    if (status === 'non-vu') {
+      this.setWatchedProgress(0);
+      return;
+    }
+
+    const current = this.getWatchedProgress();
+
+    if (current <= 0 && total > 0) {
+      this.setWatchedProgress(1);
+      return;
+    }
+
+    if (current >= total && total > 0) {
+      this.setWatchedProgress(total - 1);
+      return;
+    }
+
+    this.setWatchedProgress(current);
+  }
+
+  // Met a jour le statut du media a partir de sa progression.
+  private updateStatusFromProgress(total: number): void {
+    if (!this.media) {
+      return;
+    }
+
+    const watched = this.getWatchedProgress();
+
+    if (watched <= 0) {
+      this.media.status = 'non-vu';
+      return;
+    }
+
+    if (watched >= total) {
+      this.media.status = 'vu';
+      return;
+    }
+
+    this.media.status = 'en-cours';
+  }
+
+  private clampProgress(value: number, total: number): number {
+    return Math.max(0, Math.min(total, value));
+  }
+
+  private async persistMedia(): Promise<void> {
+    if (!this.media) {
+      return;
     }
 
     this.media.updatedAt = new Date().toISOString();
     await this.watchlistService.updateMedia(this.media);
   }
 
-  async onSeasonChange(): Promise<void> {
-    if (!this.media) return;
-
-    this.media.seasonLabel = this.selectedSeason;
-    this.media.watchedEpisodes = 0;
-    this.media.updatedAt = new Date().toISOString();
-
-    await this.loadSelectedSeasonEpisodeCount();
-  }
-
-  private updateStatusFromFilmProgress(total: number): void {
-    if (!this.media) return;
-
-    const watched = this.media.watchedMinutes || 0;
-
-    if (watched <= 0) {
-      this.media.status = 'non-vu';
-    } else if (watched >= total) {
-      this.media.status = 'vu';
-    } else {
-      this.media.status = 'en-cours';
-    }
-  }
-
-  private updateStatusFromSeriesProgress(total: number): void {
-    if (!this.media) return;
-
-    const watched = this.media.watchedEpisodes || 0;
-
-    if (watched <= 0) {
-      this.media.status = 'non-vu';
-    } else if (watched >= total) {
-      this.media.status = 'vu';
-    } else {
-      this.media.status = 'en-cours';
-    }
-  }
-
+  // Construit la liste des saisons disponibles pour le select.
   private buildSeasonOptions(): void {
-    if (!this.media || !this.isSeries()) {
-      this.seasonOptions = [];
-      return;
-    }
+    const seasonCount = this.isSeries() ? this.media?.totalSeasons || 0 : 0;
 
-    const seasonCount = this.media.totalSeasons || 0;
     this.seasonOptions = Array.from(
       { length: seasonCount },
-      (_, i) => `Saison ${i + 1}`
+      (_, index) => `Saison ${index + 1}`
     );
   }
 
@@ -243,14 +299,13 @@ export class MovieDetailPage implements OnInit {
     return match ? Number(match[0]) : 1;
   }
 
+  // Recharge le nombre d'episodes et la duree moyenne de la saison choisie.
   private async loadSelectedSeasonEpisodeCount(): Promise<void> {
     if (!this.media || !this.isSeries()) return;
 
-    const seasonNumber = this.getSelectedSeasonNumber();
-
     try {
       const seasonDetails = await firstValueFrom(
-        this.tmdbService.getTvSeasonDetails(this.media.id, seasonNumber)
+        this.tmdbService.getTvSeasonDetails(this.media.id, this.getSelectedSeasonNumber())
       );
 
       const episodeCount =
@@ -258,28 +313,32 @@ export class MovieDetailPage implements OnInit {
         seasonDetails.episode_count ||
         0;
 
+      const averageEpisodeDuration = this.calculateAverageDuration(
+        (seasonDetails.episodes || []).map((episode: any) => episode.runtime)
+      );
+
       this.media.totalEpisodes = episodeCount;
 
-      if ((this.media.watchedEpisodes || 0) > episodeCount) {
-        this.media.watchedEpisodes = episodeCount;
+      if (averageEpisodeDuration > 0) {
+        this.media.episodeDuration = averageEpisodeDuration;
       }
 
-      this.updateStatusFromSeriesProgress(episodeCount);
-
-      this.media.updatedAt = new Date().toISOString();
-      await this.watchlistService.updateMedia(this.media);
+      this.setWatchedProgress(this.clampProgress(this.getWatchedProgress(), episodeCount));
+      this.updateStatusFromProgress(episodeCount);
+      await this.persistMedia();
     } catch (error) {
       console.error('Erreur chargement saison :', error);
     }
   }
 
+  // Fusionne les donnees TMDB avec les donnees locales deja sauvegardees.
   private mergeApiAndLocalData(apiMedia: MediaItem, localMedia?: MediaItem): MediaItem {
     if (!localMedia) {
       return {
         ...apiMedia,
-        status: apiMedia.status || 'non-vu',
-        watchedMinutes: apiMedia.watchedMinutes || 0,
-        watchedEpisodes: apiMedia.watchedEpisodes || 0,
+        status: 'non-vu',
+        watchedMinutes: 0,
+        watchedEpisodes: 0,
         updatedAt: new Date().toISOString()
       };
     }
@@ -287,13 +346,14 @@ export class MovieDetailPage implements OnInit {
     return {
       ...apiMedia,
       status: localMedia.status,
-      watchedMinutes: localMedia.watchedMinutes,
-      watchedEpisodes: localMedia.watchedEpisodes,
+      watchedMinutes: localMedia.watchedMinutes ?? 0,
+      watchedEpisodes: localMedia.watchedEpisodes ?? 0,
       seasonLabel: localMedia.seasonLabel,
       updatedAt: localMedia.updatedAt
     };
   }
 
+  // Transforme la reponse TMDB d'un film en objet utilise par l'application.
   private mapMovieDetailsToMediaItem(details: any): MediaItem {
     const director = details.credits?.crew?.find((person: any) => person.job === 'Director');
 
@@ -317,10 +377,11 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
+  // Transforme la reponse TMDB d'une serie en objet utilise par l'application.
   private mapTvDetailsToMediaItem(details: any): MediaItem {
-    const avgEpisodeDuration = details.episode_run_time?.length
-      ? details.episode_run_time[0]
-      : 0;
+    const avgEpisodeDuration =
+      this.calculateAverageDuration(details.episode_run_time) ||
+      this.getRuntimeFallback(details);
 
     return {
       id: String(details.id),
@@ -334,7 +395,7 @@ export class MovieDetailPage implements OnInit {
       episodeDuration: avgEpisodeDuration,
       totalEpisodes: details.number_of_episodes || 0,
       totalSeasons: details.number_of_seasons || 0,
-      creator: (details.created_by || []).map((c: any) => c.name).join(', '),
+      creator: this.extractSeriesCreator(details),
       actors: (details.credits?.cast || []).slice(0, 5).map((actor: any) => actor.name),
       genres: (details.genres || []).map((genre: any) => genre.name),
       status: 'non-vu',
@@ -344,28 +405,59 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
-  async onDirectProgressChange(value: string | number): Promise<void> {
-    if (!this.media) return;
+  private getTextOrFallback(value?: string | null): string {
+    return value?.trim() ? value : this.missingInfoText;
+  }
 
-    const numericValue = Number(value);
+  private getJoinedTextOrFallback(values?: string[]): string {
+    const filteredValues = (values || [])
+      .map(value => value?.trim())
+      .filter((value): value is string => !!value);
 
-    if (Number.isNaN(numericValue)) {
-      return;
+    return filteredValues.length > 0
+      ? filteredValues.join(', ')
+      : this.missingInfoText;
+  }
+
+  // Calcule une duree moyenne a partir des valeurs disponibles.
+  private calculateAverageDuration(values?: unknown[]): number {
+    const durations = (values || [])
+      .map(value => Number(value))
+      .filter(value => Number.isFinite(value) && value > 0);
+
+    if (durations.length === 0) {
+      return 0;
     }
 
-    if (this.isFilm()) {
-      const total = this.media.totalMinutes || this.media.duration || 0;
-      this.media.watchedMinutes = Math.max(0, Math.min(total, numericValue));
-      this.updateStatusFromFilmProgress(total);
+    const total = durations.reduce((sum, value) => sum + value, 0);
+    return Math.round(total / durations.length);
+  }
+
+  private getRuntimeFallback(details: any): number {
+    const runtime = Number(
+      details.last_episode_to_air?.runtime ||
+      details.next_episode_to_air?.runtime ||
+      0
+    );
+
+    return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
+  }
+
+  // Recupere le ou les createurs d'une serie depuis les donnees TMDB.
+  private extractSeriesCreator(details: any): string {
+    const createdBy = (details.created_by || [])
+      .map((creator: any) => creator.name?.trim())
+      .filter((name: string | undefined): name is string => !!name);
+
+    if (createdBy.length > 0) {
+      return [...new Set(createdBy)].join(', ');
     }
 
-    if (this.isSeries()) {
-      const total = this.media.totalEpisodes || 0;
-      this.media.watchedEpisodes = Math.max(0, Math.min(total, numericValue));
-      this.updateStatusFromSeriesProgress(total);
-    }
+    const crewCreators = (details.credits?.crew || [])
+      .filter((person: any) => person.job === 'Creator')
+      .map((person: any) => person.name?.trim())
+      .filter((name: string | undefined): name is string => !!name);
 
-    this.media.updatedAt = new Date().toISOString();
-    await this.watchlistService.updateMedia(this.media);
+    return [...new Set(crewCreators)].join(', ');
   }
 }

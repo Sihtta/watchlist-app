@@ -7,7 +7,7 @@ ion-tab-bar {
 
 ion-tab-button {
   --color: #b9b4c7;
-  --color-selected: #7A5BD0;
+  --color-selected: var(--ion-color-primary);
   min-height: 60px;
 }
 
