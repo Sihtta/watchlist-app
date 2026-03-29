@@ -89,6 +89,16 @@
   color: #666;
 }
 
+.tracking-hint {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  color: #3f3f46;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .section-label {
   font-size: 0.78rem;
   color: #111;

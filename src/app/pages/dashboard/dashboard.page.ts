@@ -26,7 +26,7 @@ export class DashboardPage implements OnInit {
     private router: Router
   ) {}
 
-  // Initialise les donnees du dashboard et lance leur mise a jour.
+  // Initialise les donnees du dashboard et lance leur mise a jour
   ngOnInit(): void {
     this.refreshDashboard();
 
@@ -35,7 +35,7 @@ export class DashboardPage implements OnInit {
     });
   }
 
-  // Met a jour les donnees affichees sur le dashboard.
+  // Met a jour les donnees affichees sur le dashboard
   private refreshDashboard(): void {
     const dashboardStats = this.watchlistService.getDashboardStats();
     this.recentItems = this.watchlistService.getRecentActivity(5);
@@ -53,7 +53,7 @@ export class DashboardPage implements OnInit {
     this.router.navigate(['/tabs/search']);
   }
 
-  // Ouvre la page detail du media selectionne.
+  // Ouvre la page detail du media selectionne
   goToDetail(item: MediaItem): void {
     const tmdbType = item.type === 'film' ? 'movie' : 'tv';
 
@@ -62,7 +62,7 @@ export class DashboardPage implements OnInit {
     });
   }
 
-  // Retourne le libelle de statut a afficher pour le media.
+  // Retourne le libelle de statut a afficher pour le media
   getStatusLabel(item: MediaItem): string {
     if (item.status === 'en-cours') {
       return 'En cours';
@@ -75,7 +75,7 @@ export class DashboardPage implements OnInit {
     return 'Non vu';
   }
 
-  // Retourne le sous-titre a afficher sous le titre du media.
+  // Retourne le sous-titre a afficher sous le titre du media
   getSubtitle(item: MediaItem): string {
     if (item.type === 'serie' && item.seasonLabel) {
       return item.seasonLabel;
@@ -84,7 +84,7 @@ export class DashboardPage implements OnInit {
     return item.type === 'film' ? 'Film' : 'Série';
   }
 
-  // Retourne le texte de progression a afficher pour le media.
+  // Retourne le texte de progression a afficher pour le media
   getProgressLabel(item: MediaItem): string {
     if (item.type === 'serie' && item.totalEpisodes) {
       return `Épisode ${item.watchedEpisodes || 0} / ${item.totalEpisodes}`;

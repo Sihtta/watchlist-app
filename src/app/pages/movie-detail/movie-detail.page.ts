@@ -3,6 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { MediaItem, MediaStatus } from '../../models/media.model';
+import { TmdbMediaType } from '../../models/tmdb-search-result.model';
 import { TmdbService } from '../../services/tmdb.service';
 import { WatchlistService } from '../../services/watchlist';
 
@@ -28,47 +29,41 @@ export class MovieDetailPage implements OnInit {
     private location: Location
   ) {}
 
+  // Charge le detail du media depuis la route
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
     const typeParam = this.route.snapshot.queryParamMap.get('type');
 
-    if (!id || !typeParam) {
+    if (!id) {
       this.redirectToDashboard();
       return;
     }
 
     try {
       const localMedia = this.watchlistService.getMediaById(id);
+      const mediaType = this.resolveRouteMediaType(typeParam, localMedia);
 
-      if (!localMedia) {
-        this.redirectToDashboard();
-        return;
-      }
+      this.isSavedInWatchlist = Boolean(localMedia);
 
-      this.isSavedInWatchlist = true;
-
-      if (localMedia.source === 'manual') {
+      if (localMedia?.source === 'manual') {
         this.media = this.buildManualMedia(localMedia);
-        this.buildSeasonOptions();
-        this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
+        this.initializeSeasonState();
         this.applyManualSeasonData();
         return;
       }
 
-      const apiMedia = await this.loadApiMedia(id, typeParam);
-
-      if (!apiMedia) {
+      if (!mediaType) {
         this.redirectToDashboard();
         return;
       }
 
+      const apiMedia = await this.loadApiMedia(id, mediaType);
       this.media = this.mergeApiAndLocalData(apiMedia, localMedia);
-      this.buildSeasonOptions();
-      this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
+      this.initializeSeasonState();
 
-      if (this.isSeries()) {
+      if (this.isSeries() && this.canEditTracking()) {
         await this.loadSelectedSeasonEpisodeCount();
-      } else {
+      } else if (this.canEditTracking()) {
         await this.persistMedia();
       }
     } catch (error) {
@@ -77,6 +72,7 @@ export class MovieDetailPage implements OnInit {
     }
   }
 
+  // Revient a l'ecran precedent ou au dashboard
   goBack(): void {
     if (window.history.length > 1) {
       this.location.back();
@@ -90,14 +86,17 @@ export class MovieDetailPage implements OnInit {
     this.redirectToDashboard();
   }
 
+  // Indique si le media courant est une serie
   isSeries(): boolean {
     return this.media?.type === 'serie';
   }
 
+  // Indique si le media courant est un film
   isFilm(): boolean {
     return this.media?.type === 'film';
   }
 
+  // Autorise le suivi seulement pour les medias ajoutes
   canEditTracking(): boolean {
     return this.isSavedInWatchlist;
   }
@@ -118,6 +117,7 @@ export class MovieDetailPage implements OnInit {
     return this.getTextOrFallback(this.media?.synopsis);
   }
 
+  // Retourne la duree a afficher
   getDurationText(): string {
     if (!this.media) {
       return this.missingInfoText;
@@ -136,6 +136,7 @@ export class MovieDetailPage implements OnInit {
       : `${duration} minutes par épisode`;
   }
 
+  // Met a jour le statut et la progression associee
   async setStatus(status: MediaStatus): Promise<void> {
     if (!this.media || !this.canEditTracking()) {
       return;
@@ -162,6 +163,7 @@ export class MovieDetailPage implements OnInit {
     await this.changeProgress(1);
   }
 
+  // Recharge la progression lors d'un changement de saison
   async onSeasonChange(): Promise<void> {
     if (!this.media || !this.isSeries() || !this.canEditTracking()) {
       return;
@@ -180,6 +182,7 @@ export class MovieDetailPage implements OnInit {
     await this.loadSelectedSeasonEpisodeCount();
   }
 
+  // Met a jour la progression saisie manuellement
   async onDirectProgressChange(value: string | number): Promise<void> {
     if (!this.media || !this.canEditTracking()) {
       return;
@@ -197,24 +200,43 @@ export class MovieDetailPage implements OnInit {
     await this.persistMedia();
   }
 
-  private async loadApiMedia(id: string, typeParam: string): Promise<MediaItem | null> {
+  // Charge les details film ou serie depuis TMDB
+  private async loadApiMedia(id: string, typeParam: TmdbMediaType): Promise<MediaItem> {
     if (typeParam === 'movie') {
       const details = await firstValueFrom(this.tmdbService.getMovieDetails(id));
       return this.mapMovieDetailsToMediaItem(details);
     }
 
-    if (typeParam === 'tv') {
-      const details = await firstValueFrom(this.tmdbService.getTvDetails(id));
-      return this.mapTvDetailsToMediaItem(details);
+    const details = await firstValueFrom(this.tmdbService.getTvDetails(id));
+    return this.mapTvDetailsToMediaItem(details);
+  }
+
+  // Determine le type TMDB a partir de la route ou du media local
+  private resolveRouteMediaType(
+    typeParam: string | null,
+    localMedia?: MediaItem
+  ): TmdbMediaType | null {
+    if (typeParam === 'movie' || typeParam === 'tv') {
+      return typeParam;
+    }
+
+    if (localMedia?.type === 'film') {
+      return 'movie';
+    }
+
+    if (localMedia?.type === 'serie') {
+      return 'tv';
     }
 
     return null;
   }
 
+  // Redirige vers le dashboard si le detail ne peut pas etre ouvert
   private redirectToDashboard(): void {
     this.router.navigate(['/tabs/dashboard']);
   }
 
+  // Applique un changement de progression puis sauvegarde
   private async changeProgress(delta: number): Promise<void> {
     if (!this.media) {
       return;
@@ -311,6 +333,7 @@ export class MovieDetailPage implements OnInit {
     return Math.max(0, Math.min(total, value));
   }
 
+  // Sauvegarde le suivi uniquement pour un media ajoute
   private async persistMedia(): Promise<void> {
     if (!this.media || !this.canEditTracking()) {
       return;
@@ -320,6 +343,13 @@ export class MovieDetailPage implements OnInit {
     await this.watchlistService.updateMedia(this.media);
   }
 
+  // Initialise la saison courante et la liste disponible
+  private initializeSeasonState(): void {
+    this.buildSeasonOptions();
+    this.selectedSeason = this.media?.seasonLabel || this.seasonOptions[0] || '';
+  }
+
+  // Construit les saisons disponibles pour une serie
   private buildSeasonOptions(): void {
     const seasonCount = this.isSeries() ? this.media?.totalSeasons || 0 : 0;
 
@@ -329,20 +359,15 @@ export class MovieDetailPage implements OnInit {
     );
   }
 
+  // Extrait le numero de la saison selectionnee
   private getSelectedSeasonNumber(): number {
     const match = this.selectedSeason.match(/\d+/);
     return match ? Number(match[0]) : 1;
   }
 
+  // Charge les infos de la saison selectionnee
   private async loadSelectedSeasonEpisodeCount(): Promise<void> {
     if (!this.media || !this.isSeries() || !this.canEditTracking()) {
-      return;
-    }
-
-    if (this.media.source === 'manual') {
-      this.media.watchedEpisodes = 0;
-      this.applyManualSeasonData();
-      await this.persistMedia();
       return;
     }
 
@@ -374,6 +399,7 @@ export class MovieDetailPage implements OnInit {
     }
   }
 
+  // Fusionne les details TMDB avec le suivi local
   private mergeApiAndLocalData(apiMedia: MediaItem, localMedia?: MediaItem): MediaItem {
     if (!localMedia) {
       return {
@@ -406,6 +432,7 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
+  // Applique le nombre d'episodes de la saison manuelle
   private applyManualSeasonData(): void {
     if (!this.media || !this.isSeries()) {
       return;
@@ -423,6 +450,7 @@ export class MovieDetailPage implements OnInit {
     this.media.totalEpisodes = this.media.totalEpisodes || 0;
   }
 
+  // Mappe les details film vers le modele interne
   private mapMovieDetailsToMediaItem(details: any): MediaItem {
     const director = details.credits?.crew?.find((person: any) => person.job === 'Director');
 
@@ -447,6 +475,7 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
+  // Mappe les details serie vers le modele interne
   private mapTvDetailsToMediaItem(details: any): MediaItem {
     const avgEpisodeDuration =
       this.calculateAverageDuration(details.episode_run_time) ||
@@ -489,6 +518,7 @@ export class MovieDetailPage implements OnInit {
       : this.missingInfoText;
   }
 
+  // Calcule une duree moyenne a partir de plusieurs valeurs
   private calculateAverageDuration(values?: unknown[]): number {
     const durations = (values || [])
       .map(value => Number(value))
@@ -502,6 +532,7 @@ export class MovieDetailPage implements OnInit {
     return Math.round(total / durations.length);
   }
 
+  // Cherche une duree de secours pour les series
   private getRuntimeFallback(details: any): number {
     const runtime = Number(
       details.last_episode_to_air?.runtime ||
@@ -512,6 +543,7 @@ export class MovieDetailPage implements OnInit {
     return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
   }
 
+  // Recupere le createur principal d'une serie
   private extractSeriesCreator(details: any): string {
     const createdBy = (details.created_by || [])
       .map((creator: any) => creator.name?.trim())

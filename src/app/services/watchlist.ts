@@ -34,6 +34,7 @@ export class WatchlistService {
     this.init();
   }
 
+  // Charge la watchlist depuis le stockage
   async init(): Promise<void> {
     const { value } = await Preferences.get({ key: this.storageKey });
 
@@ -51,6 +52,7 @@ export class WatchlistService {
     }
   }
 
+  // Retourne les chiffres a afficher sur le dashboard
   getDashboardStats(): DashboardStats {
     const items = this.mediaSubject.value;
 
@@ -62,12 +64,14 @@ export class WatchlistService {
     };
   }
 
+  // Retourne les medias les plus recents
   getRecentActivity(limit: number = 5): MediaItem[] {
     return [...this.mediaSubject.value]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, limit);
   }
 
+  // Recherche un media par son identifiant
   getMediaById(id: string): MediaItem | undefined {
     return this.mediaSubject.value.find(item => item.id === id);
   }
@@ -80,6 +84,7 @@ export class WatchlistService {
     return this.getMediaByType('serie');
   }
 
+  // Filtre la liste par type de media
   getMediaByType(type: MediaType): MediaItem[] {
     return this.mediaSubject.value.filter(item => item.type === type);
   }
@@ -101,6 +106,7 @@ export class WatchlistService {
     await this.setMediaItems(updatedItems);
   }
 
+  // Remplace un media existant par sa version mise a jour
   async updateMedia(updatedItem: MediaItem): Promise<void> {
     const updatedItems = this.mediaSubject.value.map(item =>
       item.id === updatedItem.id ? updatedItem : item
@@ -109,6 +115,7 @@ export class WatchlistService {
     await this.setMediaItems(updatedItems);
   }
 
+  // Ajoute un media TMDB avec un suivi minimal
   async addFromTmdb(
     result: Pick<TmdbSearchResult, 'id' | 'mediaType' | 'title' | 'posterUrl' | 'year'>
   ): Promise<void> {
@@ -137,6 +144,7 @@ export class WatchlistService {
     await this.setMediaItems([newItem, ...this.mediaSubject.value]);
   }
 
+  // Ajoute un media manuel avec ses infos de base
   async addManualMedia(input: ManualMediaInput): Promise<void> {
     const newItem: MediaItem = {
       id: this.buildManualId(),
@@ -165,19 +173,23 @@ export class WatchlistService {
     await this.setMediaItems([newItem, ...this.mediaSubject.value]);
   }
 
+  // Verifie si un identifiant existe deja dans la liste
   private hasMediaId(id: string): boolean {
     return this.mediaSubject.value.some(item => item.id === id);
   }
 
+  // Genere un identifiant unique pour un media manuel
   private buildManualId(): string {
     return `manual-${Date.now()}`;
   }
 
+  // Met a jour l'etat local puis persiste la liste
   private async setMediaItems(items: MediaItem[]): Promise<void> {
     this.mediaSubject.next(items);
     await this.saveToStorage(items);
   }
 
+  // Enregistre la watchlist dans le stockage Capacitor
   private async saveToStorage(items: MediaItem[]): Promise<void> {
     await Preferences.set({
       key: this.storageKey,
