@@ -85,6 +85,10 @@ export class SearchPage implements OnInit {
     this.loadMedia();
   }
 
+  openManualForm(): void {
+    this.router.navigate(['/add-media']);
+  }
+
   getTypeLabel(mediaType: 'movie' | 'tv'): string {
     return mediaType === 'movie' ? 'Film' : 'Série';
   }

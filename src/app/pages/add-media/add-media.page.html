@@ -1,0 +1,113 @@
+<ion-content [fullscreen]="true" class="form-content">
+  <div class="form-container">
+    <div class="top-bar">
+      <button class="back-btn" type="button" (click)="goBack()">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </button>
+
+      <h1>Ajout manuel</h1>
+    </div>
+
+    <div class="form-card">
+      <div class="field">
+        <label for="title">Nom</label>
+        <input
+          id="title"
+          type="text"
+          [(ngModel)]="title"
+          placeholder="Nom du film ou de la série"
+        />
+      </div>
+
+      <div class="field">
+        <label>Type</label>
+
+        <div class="type-row">
+          <button
+            class="type-button"
+            [class.active]="type === 'film'"
+            type="button"
+            (click)="onTypeChange('film')"
+          >
+            Film
+          </button>
+
+          <button
+            class="type-button"
+            [class.active]="type === 'serie'"
+            type="button"
+            (click)="onTypeChange('serie')"
+          >
+            Série
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="imageUrl">Image (URL)</label>
+        <input
+          id="imageUrl"
+          type="url"
+          [(ngModel)]="imageUrl"
+          placeholder="https://..."
+        />
+      </div>
+
+      @if (isFilm()) {
+        <div class="field">
+          <label for="duration">Durée (minutes)</label>
+          <input
+            id="duration"
+            type="number"
+            min="1"
+            [(ngModel)]="duration"
+            placeholder="120"
+          />
+        </div>
+      }
+
+      @if (isSeries()) {
+        <div class="field">
+          <label for="totalSeasons">Nombre de saisons</label>
+          <input
+            id="totalSeasons"
+            type="number"
+            min="1"
+            [(ngModel)]="totalSeasons"
+            (ngModelChange)="onSeasonCountChange($event)"
+            placeholder="1"
+          />
+        </div>
+
+        <div class="field">
+          <label>Épisodes par saison</label>
+
+          <div class="season-episodes-list">
+            @for (episodeCount of seasonEpisodeCounts; track $index) {
+              <div class="field">
+                <label [for]="'season-' + $index">
+                  Saison {{ $index + 1 }}
+                </label>
+                <input
+                  [id]="'season-' + $index"
+                  type="number"
+                  min="1"
+                  [(ngModel)]="seasonEpisodeCounts[$index]"
+                  placeholder="10"
+                />
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (errorMessage) {
+        <p class="error-message">{{ errorMessage }}</p>
+      }
+
+      <button class="submit-button" type="button" (click)="submit()">
+        Ajouter à la liste
+      </button>
+    </div>
+  </div>
+</ion-content>

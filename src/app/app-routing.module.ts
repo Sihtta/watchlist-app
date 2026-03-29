@@ -25,6 +25,10 @@ const routes: Routes = [
   {
     path: 'search',
     loadChildren: () => import('./pages/search/search.module').then(m => m.SearchPageModule)
+  },
+  {
+    path: 'add-media',
+    loadChildren: () => import('./pages/add-media/add-media.module').then(m => m.AddMediaPageModule)
   }
 ];
 

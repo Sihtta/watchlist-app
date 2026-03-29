@@ -39,7 +39,21 @@ export class MovieDetailPage implements OnInit {
 
     try {
       const localMedia = this.watchlistService.getMediaById(id);
-      this.isSavedInWatchlist = !!localMedia;
+
+      if (!localMedia) {
+        this.redirectToDashboard();
+        return;
+      }
+
+      this.isSavedInWatchlist = true;
+
+      if (localMedia.source === 'manual') {
+        this.media = this.buildManualMedia(localMedia);
+        this.buildSeasonOptions();
+        this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
+        this.applyManualSeasonData();
+        return;
+      }
 
       const apiMedia = await this.loadApiMedia(id, typeParam);
 
@@ -51,10 +65,6 @@ export class MovieDetailPage implements OnInit {
       this.media = this.mergeApiAndLocalData(apiMedia, localMedia);
       this.buildSeasonOptions();
       this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
-
-      if (!this.isSavedInWatchlist) {
-        return;
-      }
 
       if (this.isSeries()) {
         await this.loadSelectedSeasonEpisodeCount();
@@ -123,7 +133,7 @@ export class MovieDetailPage implements OnInit {
 
     return this.isFilm()
       ? `${duration} minutes`
-      : `${duration} minutes par épisode (moyenne)`;
+      : `${duration} minutes par épisode`;
   }
 
   async setStatus(status: MediaStatus): Promise<void> {
@@ -158,6 +168,14 @@ export class MovieDetailPage implements OnInit {
     }
 
     this.media.seasonLabel = this.selectedSeason;
+
+    if (this.media.source === 'manual') {
+      this.media.watchedEpisodes = 0;
+      this.applyManualSeasonData();
+      await this.persistMedia();
+      return;
+    }
+
     this.media.watchedEpisodes = 0;
     await this.loadSelectedSeasonEpisodeCount();
   }
@@ -321,6 +339,13 @@ export class MovieDetailPage implements OnInit {
       return;
     }
 
+    if (this.media.source === 'manual') {
+      this.media.watchedEpisodes = 0;
+      this.applyManualSeasonData();
+      await this.persistMedia();
+      return;
+    }
+
     try {
       const seasonDetails = await firstValueFrom(
         this.tmdbService.getTvSeasonDetails(this.media.id, this.getSelectedSeasonNumber())
@@ -362,6 +387,7 @@ export class MovieDetailPage implements OnInit {
 
     return {
       ...apiMedia,
+      source: localMedia.source,
       status: localMedia.status,
       watchedMinutes: localMedia.watchedMinutes ?? 0,
       watchedEpisodes: localMedia.watchedEpisodes ?? 0,
@@ -370,12 +396,40 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
+  private buildManualMedia(localMedia: MediaItem): MediaItem {
+    return {
+      ...localMedia,
+      updatedAt: localMedia.updatedAt || new Date().toISOString(),
+      watchedMinutes: localMedia.watchedMinutes ?? 0,
+      watchedEpisodes: localMedia.watchedEpisodes ?? 0,
+      seasonEpisodeCounts: localMedia.seasonEpisodeCounts || []
+    };
+  }
+
+  private applyManualSeasonData(): void {
+    if (!this.media || !this.isSeries()) {
+      return;
+    }
+
+    const seasonNumber = this.getSelectedSeasonNumber();
+    const seasonEpisodeCounts = this.media.seasonEpisodeCounts || [];
+    const selectedSeasonEpisodeCount = seasonEpisodeCounts[seasonNumber - 1];
+
+    if (selectedSeasonEpisodeCount && selectedSeasonEpisodeCount > 0) {
+      this.media.totalEpisodes = selectedSeasonEpisodeCount;
+      return;
+    }
+
+    this.media.totalEpisodes = this.media.totalEpisodes || 0;
+  }
+
   private mapMovieDetailsToMediaItem(details: any): MediaItem {
     const director = details.credits?.crew?.find((person: any) => person.job === 'Director');
 
     return {
       id: String(details.id),
       type: 'film',
+      source: 'tmdb',
       title: details.title || 'Sans titre',
       poster: details.poster_path
         ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
@@ -401,6 +455,7 @@ export class MovieDetailPage implements OnInit {
     return {
       id: String(details.id),
       type: 'serie',
+      source: 'tmdb',
       title: details.name || 'Sans titre',
       poster: details.poster_path
         ? `https://image.tmdb.org/t/p/w500${details.poster_path}`

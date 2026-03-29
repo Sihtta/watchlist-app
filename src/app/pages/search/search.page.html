@@ -1,6 +1,12 @@
 <ion-content [fullscreen]="true" class="search-content">
   <div class="search-container">
-    <h1>Recherche</h1>
+    <div class="title-row">
+      <h1>Recherche</h1>
+
+      <button class="manual-add-button" type="button" (click)="openManualForm()">
+        Ajouter manuellement
+      </button>
+    </div>
 
     <div class="search-bar">
       <input

@@ -11,6 +11,16 @@ export interface DashboardStats {
   films: number;
 }
 
+export interface ManualMediaInput {
+  title: string;
+  type: MediaType;
+  imageUrl?: string;
+  duration?: number;
+  totalSeasons?: number;
+  totalEpisodes?: number;
+  seasonEpisodeCounts?: number[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -112,6 +122,7 @@ export class WatchlistService {
       id,
       title: result.title,
       type: result.mediaType === 'movie' ? 'film' : 'serie',
+      source: 'tmdb',
       poster: result.posterUrl || undefined,
       year: result.year || undefined,
       status: 'non-vu',
@@ -126,8 +137,40 @@ export class WatchlistService {
     await this.setMediaItems([newItem, ...this.mediaSubject.value]);
   }
 
+  async addManualMedia(input: ManualMediaInput): Promise<void> {
+    const newItem: MediaItem = {
+      id: this.buildManualId(),
+      title: input.title.trim(),
+      type: input.type,
+      source: 'manual',
+      poster: input.imageUrl?.trim() || undefined,
+      status: 'non-vu',
+      updatedAt: new Date().toISOString(),
+      watchedMinutes: 0,
+      watchedEpisodes: 0
+    };
+
+    if (input.type === 'film') {
+      newItem.duration = input.duration || 0;
+      newItem.totalMinutes = input.duration || 0;
+    } else {
+      const seasonEpisodeCounts = (input.seasonEpisodeCounts || []).map(count => Number(count) || 0);
+
+      newItem.totalSeasons = input.totalSeasons || 1;
+      newItem.seasonEpisodeCounts = seasonEpisodeCounts;
+      newItem.totalEpisodes = seasonEpisodeCounts[0] || input.totalEpisodes || 0;
+      newItem.seasonLabel = 'Saison 1';
+    }
+
+    await this.setMediaItems([newItem, ...this.mediaSubject.value]);
+  }
+
   private hasMediaId(id: string): boolean {
     return this.mediaSubject.value.some(item => item.id === id);
+  }
+
+  private buildManualId(): string {
+    return `manual-${Date.now()}`;
   }
 
   private async setMediaItems(items: MediaItem[]): Promise<void> {

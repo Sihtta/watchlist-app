@@ -8,11 +8,31 @@
   padding: 18px 14px 90px;
 }
 
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
 h1 {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 1.8rem;
   font-weight: 700;
   color: #111111;
+}
+
+.manual-add-button {
+  border: none;
+  border-radius: 999px;
+  background: var(--p);
+  color: #ffffff;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(var(--p-rgb), 0.25);
 }
 
 .search-bar {
