@@ -5,13 +5,11 @@ export interface MediaItem {
   id: string;
   title: string;
   type: MediaType;
-  poster?: string;
-
-  year?: string;
-
   status: MediaStatus;
   updatedAt: string;
 
+  poster?: string;
+  year?: string;
   seasonLabel?: string;
 
   duration?: number;
@@ -27,6 +25,5 @@ export interface MediaItem {
   creator?: string;
   actors?: string[];
   genres?: string[];
-
   synopsis?: string;
 }

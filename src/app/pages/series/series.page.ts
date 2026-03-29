@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { MediaItem } from '../../models/media.model';
-import { TmdbSearchResult } from '../../models/tmdb-search-result.model';
+import { Subscription } from 'rxjs';
+import { MediaItem, MediaStatus } from '../../models/media.model';
 import { WatchlistService } from '../../services/watchlist';
+
+type StatusFilter = 'Tous' | MediaStatus;
 
 @Component({
   selector: 'app-series',
@@ -10,9 +12,13 @@ import { WatchlistService } from '../../services/watchlist';
   standalone: false,
   styleUrls: ['./series.page.scss']
 })
-export class SeriesPage implements OnInit {
+export class SeriesPage implements OnInit, OnDestroy {
   series: MediaItem[] = [];
-  selectedStatus: 'Tous' | 'en-cours' | 'non-vu' | 'vu' = 'Tous';
+  selectedStatus: StatusFilter = 'Tous';
+
+  readonly statusFilters: StatusFilter[] = ['Tous', 'en-cours', 'non-vu', 'vu'];
+
+  private mediaSubscription?: Subscription;
 
   constructor(
     private watchlistService: WatchlistService,
@@ -20,15 +26,19 @@ export class SeriesPage implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.load();
+    this.loadSeries();
 
-    this.watchlistService.media$.subscribe(() => {
-      this.load();
+    this.mediaSubscription = this.watchlistService.media$.subscribe(() => {
+      this.loadSeries();
     });
   }
 
+  ngOnDestroy(): void {
+    this.mediaSubscription?.unsubscribe();
+  }
+
   ionViewWillEnter(): void {
-    this.load();
+    this.loadSeries();
   }
 
   get filteredSeries(): MediaItem[] {
@@ -39,12 +49,8 @@ export class SeriesPage implements OnInit {
     return this.series.filter(item => item.status === this.selectedStatus);
   }
 
-  selectStatus(status: 'Tous' | 'en-cours' | 'non-vu' | 'vu'): void {
+  selectStatus(status: StatusFilter): void {
     this.selectedStatus = status;
-  }
-
-  load(): void {
-    this.series = this.watchlistService.getSeries();
   }
 
   goToSearch(): void {
@@ -57,19 +63,28 @@ export class SeriesPage implements OnInit {
     });
   }
 
-  async toggleSaved(event: Event, item: MediaItem): Promise<void> {
+  async removeSeries(event: Event, item: MediaItem): Promise<void> {
     event.stopPropagation();
+    await this.watchlistService.removeById(item.id);
+  }
 
-    const media: TmdbSearchResult = {
-      id: Number(item.id),
-      mediaType: 'tv',
-      title: item.title,
-      posterUrl: item.poster || null,
-      rating: 0,
-      year: item.year || '',
-      genres: []
-    };
+  getStatusLabel(status: MediaStatus): string {
+    if (status === 'en-cours') {
+      return 'En cours';
+    }
 
-    await this.watchlistService.removeTmdbItem(media);
+    if (status === 'vu') {
+      return 'Vu';
+    }
+
+    return 'À voir';
+  }
+
+  hasProgress(item: MediaItem): boolean {
+    return item.status === 'en-cours' && (item.totalEpisodes || 0) > 0;
+  }
+
+  private loadSeries(): void {
+    this.series = this.watchlistService.getSeries();
   }
 }

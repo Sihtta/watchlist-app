@@ -14,9 +14,11 @@ import { WatchlistService } from '../../services/watchlist';
 })
 export class MovieDetailPage implements OnInit {
   readonly missingInfoText = 'Aucune information trouvée';
+
   media?: MediaItem;
   selectedSeason = '';
   seasonOptions: string[] = [];
+  isSavedInWatchlist = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -26,7 +28,6 @@ export class MovieDetailPage implements OnInit {
     private location: Location
   ) {}
 
-  // Charge les donnees du media et initialise l'etat de la page.
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
     const typeParam = this.route.snapshot.queryParamMap.get('type');
@@ -38,6 +39,8 @@ export class MovieDetailPage implements OnInit {
 
     try {
       const localMedia = this.watchlistService.getMediaById(id);
+      this.isSavedInWatchlist = !!localMedia;
+
       const apiMedia = await this.loadApiMedia(id, typeParam);
 
       if (!apiMedia) {
@@ -49,9 +52,13 @@ export class MovieDetailPage implements OnInit {
       this.buildSeasonOptions();
       this.selectedSeason = this.media.seasonLabel || this.seasonOptions[0] || '';
 
+      if (!this.isSavedInWatchlist) {
+        return;
+      }
+
       if (this.isSeries()) {
         await this.loadSelectedSeasonEpisodeCount();
-      } else if (localMedia) {
+      } else {
         await this.persistMedia();
       }
     } catch (error) {
@@ -81,6 +88,10 @@ export class MovieDetailPage implements OnInit {
     return this.media?.type === 'film';
   }
 
+  canEditTracking(): boolean {
+    return this.isSavedInWatchlist;
+  }
+
   getActorsText(): string {
     return this.getJoinedTextOrFallback(this.media?.actors);
   }
@@ -97,7 +108,6 @@ export class MovieDetailPage implements OnInit {
     return this.getTextOrFallback(this.media?.synopsis);
   }
 
-  // Retourne le texte de duree a afficher selon le type de media.
   getDurationText(): string {
     if (!this.media) {
       return this.missingInfoText;
@@ -116,9 +126,10 @@ export class MovieDetailPage implements OnInit {
       : `${duration} minutes par épisode (moyenne)`;
   }
 
-  // Met a jour le statut du media et ajuste sa progression.
   async setStatus(status: MediaStatus): Promise<void> {
-    if (!this.media) return;
+    if (!this.media || !this.canEditTracking()) {
+      return;
+    }
 
     this.media.status = status;
     this.applyStatusToProgress(status, this.getProgressTotal());
@@ -126,16 +137,25 @@ export class MovieDetailPage implements OnInit {
   }
 
   async decreaseProgress(): Promise<void> {
+    if (!this.canEditTracking()) {
+      return;
+    }
+
     await this.changeProgress(-1);
   }
 
   async increaseProgress(): Promise<void> {
+    if (!this.canEditTracking()) {
+      return;
+    }
+
     await this.changeProgress(1);
   }
 
-  // Change la saison suivie et recharge les informations associees.
   async onSeasonChange(): Promise<void> {
-    if (!this.media || !this.isSeries()) return;
+    if (!this.media || !this.isSeries() || !this.canEditTracking()) {
+      return;
+    }
 
     this.media.seasonLabel = this.selectedSeason;
     this.media.watchedEpisodes = 0;
@@ -143,7 +163,9 @@ export class MovieDetailPage implements OnInit {
   }
 
   async onDirectProgressChange(value: string | number): Promise<void> {
-    if (!this.media) return;
+    if (!this.media || !this.canEditTracking()) {
+      return;
+    }
 
     const numericValue = Number(value);
 
@@ -157,7 +179,6 @@ export class MovieDetailPage implements OnInit {
     await this.persistMedia();
   }
 
-  // Charge les details du media depuis TMDB selon son type.
   private async loadApiMedia(id: string, typeParam: string): Promise<MediaItem | null> {
     if (typeParam === 'movie') {
       const details = await firstValueFrom(this.tmdbService.getMovieDetails(id));
@@ -176,9 +197,10 @@ export class MovieDetailPage implements OnInit {
     this.router.navigate(['/tabs/dashboard']);
   }
 
-  // Modifie la progression courante puis met a jour le statut.
   private async changeProgress(delta: number): Promise<void> {
-    if (!this.media) return;
+    if (!this.media) {
+      return;
+    }
 
     const total = this.getProgressTotal();
     const nextValue = this.getWatchedProgress() + delta;
@@ -188,7 +210,6 @@ export class MovieDetailPage implements OnInit {
     await this.persistMedia();
   }
 
-  // Retourne la progression totale possible pour le media.
   private getProgressTotal(): number {
     if (!this.media) {
       return 0;
@@ -199,7 +220,6 @@ export class MovieDetailPage implements OnInit {
       : this.media.totalEpisodes || 0;
   }
 
-  // Retourne la progression actuellement enregistree pour le media.
   private getWatchedProgress(): number {
     if (!this.media) {
       return 0;
@@ -210,7 +230,6 @@ export class MovieDetailPage implements OnInit {
       : this.media.watchedEpisodes || 0;
   }
 
-  // Met a jour la progression du media selon son type.
   private setWatchedProgress(value: number): void {
     if (!this.media) {
       return;
@@ -250,7 +269,6 @@ export class MovieDetailPage implements OnInit {
     this.setWatchedProgress(current);
   }
 
-  // Met a jour le statut du media a partir de sa progression.
   private updateStatusFromProgress(total: number): void {
     if (!this.media) {
       return;
@@ -276,7 +294,7 @@ export class MovieDetailPage implements OnInit {
   }
 
   private async persistMedia(): Promise<void> {
-    if (!this.media) {
+    if (!this.media || !this.canEditTracking()) {
       return;
     }
 
@@ -284,7 +302,6 @@ export class MovieDetailPage implements OnInit {
     await this.watchlistService.updateMedia(this.media);
   }
 
-  // Construit la liste des saisons disponibles pour le select.
   private buildSeasonOptions(): void {
     const seasonCount = this.isSeries() ? this.media?.totalSeasons || 0 : 0;
 
@@ -299,9 +316,10 @@ export class MovieDetailPage implements OnInit {
     return match ? Number(match[0]) : 1;
   }
 
-  // Recharge le nombre d'episodes et la duree moyenne de la saison choisie.
   private async loadSelectedSeasonEpisodeCount(): Promise<void> {
-    if (!this.media || !this.isSeries()) return;
+    if (!this.media || !this.isSeries() || !this.canEditTracking()) {
+      return;
+    }
 
     try {
       const seasonDetails = await firstValueFrom(
@@ -331,7 +349,6 @@ export class MovieDetailPage implements OnInit {
     }
   }
 
-  // Fusionne les donnees TMDB avec les donnees locales deja sauvegardees.
   private mergeApiAndLocalData(apiMedia: MediaItem, localMedia?: MediaItem): MediaItem {
     if (!localMedia) {
       return {
@@ -353,7 +370,6 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
-  // Transforme la reponse TMDB d'un film en objet utilise par l'application.
   private mapMovieDetailsToMediaItem(details: any): MediaItem {
     const director = details.credits?.crew?.find((person: any) => person.job === 'Director');
 
@@ -363,7 +379,7 @@ export class MovieDetailPage implements OnInit {
       title: details.title || 'Sans titre',
       poster: details.poster_path
         ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
-        : 'assets/mock/placeholder.jpg',
+        : '',
       year: details.release_date ? new Date(details.release_date).getFullYear().toString() : '',
       synopsis: details.overview || '',
       duration: details.runtime || 0,
@@ -377,7 +393,6 @@ export class MovieDetailPage implements OnInit {
     };
   }
 
-  // Transforme la reponse TMDB d'une serie en objet utilise par l'application.
   private mapTvDetailsToMediaItem(details: any): MediaItem {
     const avgEpisodeDuration =
       this.calculateAverageDuration(details.episode_run_time) ||
@@ -389,7 +404,7 @@ export class MovieDetailPage implements OnInit {
       title: details.name || 'Sans titre',
       poster: details.poster_path
         ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
-        : 'assets/mock/placeholder.jpg',
+        : '',
       year: details.first_air_date ? new Date(details.first_air_date).getFullYear().toString() : '',
       synopsis: details.overview || '',
       episodeDuration: avgEpisodeDuration,
@@ -419,7 +434,6 @@ export class MovieDetailPage implements OnInit {
       : this.missingInfoText;
   }
 
-  // Calcule une duree moyenne a partir des valeurs disponibles.
   private calculateAverageDuration(values?: unknown[]): number {
     const durations = (values || [])
       .map(value => Number(value))
@@ -443,7 +457,6 @@ export class MovieDetailPage implements OnInit {
     return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
   }
 
-  // Recupere le ou les createurs d'une serie depuis les donnees TMDB.
   private extractSeriesCreator(details: any): string {
     const createdBy = (details.created_by || [])
       .map((creator: any) => creator.name?.trim())

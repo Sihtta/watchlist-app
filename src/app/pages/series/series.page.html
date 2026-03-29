@@ -7,7 +7,7 @@
         <p>Aucune série dans votre catalogue</p>
         <p>Ajoutez votre première série<br />depuis la recherche</p>
 
-        <button class="add-btn" (click)="goToSearch()">
+        <button class="add-btn" type="button" (click)="goToSearch()">
           +
         </button>
       </div>
@@ -15,53 +15,42 @@
 
     @if (series.length > 0) {
       <div class="filters-row">
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'Tous'"
-          type="button"
-          (click)="selectStatus('Tous')"
-        >
-          Tous
-        </button>
-
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'en-cours'"
-          type="button"
-          (click)="selectStatus('en-cours')"
-        >
-          En Cours
-        </button>
-
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'non-vu'"
-          type="button"
-          (click)="selectStatus('non-vu')"
-        >
-          À voir
-        </button>
-
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'vu'"
-          type="button"
-          (click)="selectStatus('vu')"
-        >
-          Vu
-        </button>
+        @for (status of statusFilters; track status) {
+          <button
+            class="filter-chip"
+            [class.active]="selectedStatus === status"
+            type="button"
+            (click)="selectStatus(status)"
+          >
+            {{
+              status === 'Tous'
+                ? 'Tous'
+                : status === 'en-cours'
+                  ? 'En cours'
+                  : status === 'non-vu'
+                    ? 'À voir'
+                    : 'Vu'
+            }}
+          </button>
+        }
       </div>
 
       <div class="grid">
         @for (item of filteredSeries; track item.id) {
           <div class="card" (click)="goToDetail(item)">
             <div class="poster-wrapper">
-              <img [src]="item.poster || 'assets/mock/placeholder.jpg'" />
+              @if (item.poster) {
+                <img [src]="item.poster" [alt]="item.title" />
+              } @else {
+                <div class="poster-placeholder">
+                  <ion-icon name="image-outline"></ion-icon>
+                </div>
+              }
 
               <button
-                class="add-button saved"
+                class="remove-button"
                 type="button"
-                (click)="toggleSaved($event, item)"
+                (click)="removeSeries($event, item)"
               >
                 <ion-icon name="checkmark-outline"></ion-icon>
               </button>
@@ -71,17 +60,13 @@
               <div class="title">{{ item.title }}</div>
 
               <div class="bottom">
-                <span class="status">
-                  {{ item.status === 'en-cours' ? 'En cours' :
-                     item.status === 'vu' ? 'Vu' : 'À voir' }}
-                </span>
-
-                <span class="year">{{ item.year }}</span>
+                <span class="status">{{ getStatusLabel(item.status) }}</span>
+                <span class="year">{{ item.year || 'Série' }}</span>
               </div>
 
-              @if (item.status === 'en-cours' && item.totalEpisodes) {
+              @if (hasProgress(item)) {
                 <div class="progress">
-                  Épisode {{ item.watchedEpisodes || 0 }} / {{ item.totalEpisodes }}
+                  Épisode {{ item.watchedEpisodes || 0 }} / {{ item.totalEpisodes || 0 }}
                 </div>
               }
 

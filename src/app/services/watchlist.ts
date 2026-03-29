@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 import { BehaviorSubject } from 'rxjs';
-import { MediaItem } from '../models/media.model';
+import { MediaItem, MediaType } from '../models/media.model';
 import { TmdbSearchResult } from '../models/tmdb-search-result.model';
 
 export interface DashboardStats {
@@ -15,18 +15,17 @@ export interface DashboardStats {
   providedIn: 'root'
 })
 export class WatchlistService {
-  private readonly STORAGE_KEY = 'watchlist_items';
+  private readonly storageKey = 'watchlist_items';
 
-  private mediaSubject = new BehaviorSubject<MediaItem[]>([]);
-  media$ = this.mediaSubject.asObservable();
+  private readonly mediaSubject = new BehaviorSubject<MediaItem[]>([]);
+  readonly media$ = this.mediaSubject.asObservable();
 
   constructor() {
     this.init();
   }
 
-  // Charge la watchlist sauvegardee au demarrage de l'application.
   async init(): Promise<void> {
-    const { value } = await Preferences.get({ key: this.STORAGE_KEY });
+    const { value } = await Preferences.get({ key: this.storageKey });
 
     if (!value) {
       this.mediaSubject.next([]);
@@ -34,15 +33,14 @@ export class WatchlistService {
     }
 
     try {
-      const parsedItems: MediaItem[] = JSON.parse(value);
-      this.mediaSubject.next(parsedItems);
+      const items: MediaItem[] = JSON.parse(value);
+      this.mediaSubject.next(items);
     } catch (error) {
       console.error('Erreur lecture watchlist :', error);
       await this.setMediaItems([]);
     }
   }
 
-  // Calcule les statistiques affichees sur le dashboard.
   getDashboardStats(): DashboardStats {
     const items = this.mediaSubject.value;
 
@@ -54,7 +52,6 @@ export class WatchlistService {
     };
   }
 
-  // Retourne les medias les plus recents selon leur date de mise a jour.
   getRecentActivity(limit: number = 5): MediaItem[] {
     return [...this.mediaSubject.value]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -65,60 +62,54 @@ export class WatchlistService {
     return this.mediaSubject.value.find(item => item.id === id);
   }
 
-  getSeries(): MediaItem[] {
-    return this.mediaSubject.value.filter(item => item.type === 'serie');
-  }
-
   getFilms(): MediaItem[] {
-    return this.mediaSubject.value.filter(item => item.type === 'film');
+    return this.getMediaByType('film');
   }
 
-  isSavedTmdbItem(item: TmdbSearchResult): boolean {
-    return this.mediaSubject.value.some(
-      media => media.id === String(item.id)
-    );
+  getSeries(): MediaItem[] {
+    return this.getMediaByType('serie');
   }
 
-  // Supprime un media TMDB deja present dans la watchlist.
-  async removeTmdbItem(item: TmdbSearchResult): Promise<void> {
-    const updated = this.mediaSubject.value.filter(
-      media => media.id !== String(item.id)
-    );
-
-    await this.setMediaItems(updated);
-  }
-
-  // Met a jour un media existant dans la watchlist.
-  async updateMedia(updatedItem: MediaItem): Promise<void> {
-    const updated = this.mediaSubject.value.map(item =>
-      item.id === updatedItem.id ? updatedItem : item
-    );
-
-    await this.setMediaItems(updated);
+  getMediaByType(type: MediaType): MediaItem[] {
+    return this.mediaSubject.value.filter(item => item.type === type);
   }
 
   hasData(): boolean {
     return this.mediaSubject.value.length > 0;
   }
 
-  // Ajoute un nouveau media TMDB dans la watchlist locale.
-  async addFromTmdb(result: {
-    id: number;
-    mediaType: 'movie' | 'tv';
-    title: string;
-    posterUrl: string | null;
-    year: string;
-  }): Promise<void> {
-    const exists = this.mediaSubject.value.some(
-      item => item.id === String(result.id)
+  isSavedTmdbItem(item: TmdbSearchResult): boolean {
+    return this.hasMediaId(String(item.id));
+  }
+
+  async removeTmdbItem(item: TmdbSearchResult): Promise<void> {
+    await this.removeById(String(item.id));
+  }
+
+  async removeById(id: string): Promise<void> {
+    const updatedItems = this.mediaSubject.value.filter(item => item.id !== id);
+    await this.setMediaItems(updatedItems);
+  }
+
+  async updateMedia(updatedItem: MediaItem): Promise<void> {
+    const updatedItems = this.mediaSubject.value.map(item =>
+      item.id === updatedItem.id ? updatedItem : item
     );
 
-    if (exists) {
+    await this.setMediaItems(updatedItems);
+  }
+
+  async addFromTmdb(
+    result: Pick<TmdbSearchResult, 'id' | 'mediaType' | 'title' | 'posterUrl' | 'year'>
+  ): Promise<void> {
+    const id = String(result.id);
+
+    if (this.hasMediaId(id)) {
       return;
     }
 
     const newItem: MediaItem = {
-      id: String(result.id),
+      id,
       title: result.title,
       type: result.mediaType === 'movie' ? 'film' : 'serie',
       poster: result.posterUrl || undefined,
@@ -135,17 +126,19 @@ export class WatchlistService {
     await this.setMediaItems([newItem, ...this.mediaSubject.value]);
   }
 
-  // Met a jour l'etat local puis sauvegarde la watchlist.
-  private async setMediaItems(items: MediaItem[]): Promise<void> {
-    this.mediaSubject.next(items);
-    await this.saveToStorage();
+  private hasMediaId(id: string): boolean {
+    return this.mediaSubject.value.some(item => item.id === id);
   }
 
-  // Enregistre la watchlist dans le stockage local de l'application.
-  private async saveToStorage(): Promise<void> {
+  private async setMediaItems(items: MediaItem[]): Promise<void> {
+    this.mediaSubject.next(items);
+    await this.saveToStorage(items);
+  }
+
+  private async saveToStorage(items: MediaItem[]): Promise<void> {
     await Preferences.set({
-      key: this.STORAGE_KEY,
-      value: JSON.stringify(this.mediaSubject.value)
+      key: this.storageKey,
+      value: JSON.stringify(items)
     });
   }
 }

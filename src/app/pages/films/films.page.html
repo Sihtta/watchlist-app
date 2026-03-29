@@ -5,9 +5,9 @@
     @if (movies.length === 0) {
       <div class="empty">
         <p>Aucun film dans votre catalogue</p>
-        <p>Ajoutez votre premier film<br />ou série depuis la recherche</p>
+        <p>Ajoutez votre premier film<br />depuis la recherche</p>
 
-        <button class="add-btn" (click)="goToSearch()">
+        <button class="add-btn" type="button" (click)="goToSearch()">
           +
         </button>
       </div>
@@ -15,53 +15,42 @@
 
     @if (movies.length > 0) {
       <div class="filters-row">
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'Tous'"
-          type="button"
-          (click)="selectStatus('Tous')"
-        >
-          Tous
-        </button>
-
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'en-cours'"
-          type="button"
-          (click)="selectStatus('en-cours')"
-        >
-          En Cours
-        </button>
-
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'non-vu'"
-          type="button"
-          (click)="selectStatus('non-vu')"
-        >
-          À voir
-        </button>
-
-        <button
-          class="filter-chip"
-          [class.active]="selectedStatus === 'vu'"
-          type="button"
-          (click)="selectStatus('vu')"
-        >
-          Vu
-        </button>
+        @for (status of statusFilters; track status) {
+          <button
+            class="filter-chip"
+            [class.active]="selectedStatus === status"
+            type="button"
+            (click)="selectStatus(status)"
+          >
+            {{
+              status === 'Tous'
+                ? 'Tous'
+                : status === 'en-cours'
+                  ? 'En cours'
+                  : status === 'non-vu'
+                    ? 'À voir'
+                    : 'Vu'
+            }}
+          </button>
+        }
       </div>
 
       <div class="grid">
         @for (movie of filteredMovies; track movie.id) {
           <div class="card" (click)="goToDetail(movie)">
             <div class="poster-wrapper">
-              <img [src]="movie.poster || 'assets/mock/placeholder.jpg'" />
+              @if (movie.poster) {
+                <img [src]="movie.poster" [alt]="movie.title" />
+              } @else {
+                <div class="poster-placeholder">
+                  <ion-icon name="image-outline"></ion-icon>
+                </div>
+              }
 
               <button
-                class="add-button saved"
+                class="remove-button"
                 type="button"
-                (click)="toggleSaved($event, movie)"
+                (click)="removeMovie($event, movie)"
               >
                 <ion-icon name="checkmark-outline"></ion-icon>
               </button>
@@ -71,17 +60,13 @@
               <div class="title">{{ movie.title }}</div>
 
               <div class="bottom">
-                <span class="status">
-                  {{ movie.status === 'en-cours' ? 'En cours' :
-                     movie.status === 'vu' ? 'Vu' : 'À voir' }}
-                </span>
-
-                <span class="year">{{ movie.year }}</span>
+                <span class="status">{{ getStatusLabel(movie.status) }}</span>
+                <span class="year">{{ movie.year || 'Film' }}</span>
               </div>
 
-              @if (movie.status === 'en-cours' && movie.totalMinutes) {
+              @if (hasProgress(movie)) {
                 <div class="progress">
-                  {{ movie.watchedMinutes || 0 }} / {{ movie.totalMinutes }} min
+                  {{ movie.watchedMinutes || 0 }} / {{ movie.totalMinutes || 0 }} min
                 </div>
               }
             </div>

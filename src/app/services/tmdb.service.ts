@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, map } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { TmdbSearchResult } from '../models/tmdb-search-result.model';
+import { TmdbMediaType, TmdbSearchResult } from '../models/tmdb-search-result.model';
 
 interface TmdbRawItem {
   id: number;
@@ -20,15 +20,7 @@ interface TmdbMediaItem extends TmdbRawItem {
   media_type: 'movie' | 'tv';
 }
 
-interface TmdbMultiSearchResponse {
-  results: TmdbRawItem[];
-}
-
-interface TmdbTrendingResponse {
-  results: TmdbRawItem[];
-}
-
-interface TmdbDiscoverResponse {
+interface TmdbListResponse {
   results: TmdbRawItem[];
 }
 
@@ -39,57 +31,71 @@ export class TmdbService {
   private readonly apiUrl = 'https://api.themoviedb.org/3';
   private readonly imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
-  private readonly movieGenreMap: Record<number, string> = {
-    28: 'Action',
-    12: 'Aventure',
-    16: 'Animation',
-    35: 'Comédie',
-    80: 'Policier',
-    99: 'Documentaire',
-    18: 'Drame',
-    10751: 'Comédie',
-    14: 'Fantastique',
-    36: 'Drame',
-    27: 'Horreur',
-    10402: 'Comédie',
-    9648: 'Policier',
-    10749: 'Romance',
-    878: 'Science-fiction',
-    10770: 'Drame',
-    53: 'Policier',
-    10752: 'Action',
-    37: 'Aventure'
+  private readonly genreNamesByType: Record<TmdbMediaType, Record<number, string>> = {
+    movie: {
+      28: 'Action',
+      12: 'Aventure',
+      16: 'Animation',
+      35: 'Comédie',
+      80: 'Policier',
+      99: 'Documentaire',
+      18: 'Drame',
+      10751: 'Comédie',
+      14: 'Fantastique',
+      36: 'Drame',
+      27: 'Horreur',
+      10402: 'Comédie',
+      9648: 'Policier',
+      10749: 'Romance',
+      878: 'Science-fiction',
+      10770: 'Drame',
+      53: 'Policier',
+      10752: 'Action',
+      37: 'Aventure'
+    },
+    tv: {
+      10759: 'Action',
+      16: 'Animation',
+      35: 'Comédie',
+      80: 'Policier',
+      99: 'Documentaire',
+      18: 'Drame',
+      10751: 'Comédie',
+      10762: 'Animation',
+      9648: 'Policier',
+      10763: 'Documentaire',
+      10764: 'Documentaire',
+      10765: 'Science-fiction',
+      10766: 'Romance',
+      10767: 'Documentaire',
+      10768: 'Action',
+      37: 'Aventure'
+    }
   };
 
-  private readonly tvGenreMap: Record<number, string> = {
-    10759: 'Action',
-    16: 'Animation',
-    35: 'Comédie',
-    80: 'Policier',
-    99: 'Documentaire',
-    18: 'Drame',
-    10751: 'Comédie',
-    10762: 'Animation',
-    9648: 'Policier',
-    10763: 'Documentaire',
-    10764: 'Documentaire',
-    10765: 'Science-fiction',
-    10766: 'Romance',
-    10767: 'Documentaire',
-    10768: 'Action',
-    37: 'Aventure'
-  };
-
-  private readonly genreToTmdbId: Record<string, number> = {
-    Action: 28,
-    Aventure: 12,
-    Animation: 16,
-    Comédie: 35,
-    Horreur: 27,
-    Romance: 10749,
-    Policier: 80,
-    Fantastique: 14,
-    'Science-fiction': 878
+  private readonly genreIdsByType: Record<TmdbMediaType, Record<string, number>> = {
+    movie: {
+      Action: 28,
+      Aventure: 12,
+      Animation: 16,
+      Comédie: 35,
+      Horreur: 27,
+      Romance: 10749,
+      Policier: 80,
+      Fantastique: 14,
+      'Science-fiction': 878
+    },
+    tv: {
+      Action: 10759,
+      Aventure: 37,
+      Animation: 16,
+      Comédie: 35,
+      Horreur: 9648,
+      Romance: 10766,
+      Policier: 80,
+      Fantastique: 10765,
+      'Science-fiction': 10765
+    }
   };
 
   constructor(private http: HttpClient) {}
@@ -100,37 +106,123 @@ export class TmdbService {
       .set('language', 'fr-FR')
       .set('include_adult', 'false');
 
+    return this.fetchMediaList('/search/multi', params);
+  }
+
+  getDefaultMedia(): Observable<TmdbSearchResult[]> {
+    const params = new HttpParams().set('language', 'fr-FR');
+    return this.fetchMediaList('/trending/all/week', params);
+  }
+
+  getMovieDetails(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/movie/${id}`, {
+      headers: this.buildHeaders(),
+      params: this.buildDetailsParams()
+    });
+  }
+
+  getTvDetails(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/tv/${id}`, {
+      headers: this.buildHeaders(),
+      params: this.buildDetailsParams()
+    });
+  }
+
+  getTvSeasonDetails(seriesId: string, seasonNumber: number): Observable<any> {
+    const params = new HttpParams().set('language', 'fr-FR');
+
+    return this.http.get<any>(`${this.apiUrl}/tv/${seriesId}/season/${seasonNumber}`, {
+      headers: this.buildHeaders(),
+      params
+    });
+  }
+
+  discoverMedia(
+    selectedType: string,
+    selectedGenre: string,
+    minRating: number
+  ): Observable<TmdbSearchResult[]> {
+    if (selectedType === 'Film') {
+      return this.discoverByType('movie', selectedGenre, minRating);
+    }
+
+    if (selectedType === 'Série') {
+      return this.discoverByType('tv', selectedGenre, minRating);
+    }
+
+    return forkJoin([
+      this.discoverByType('movie', selectedGenre, minRating),
+      this.discoverByType('tv', selectedGenre, minRating)
+    ]).pipe(
+      map(([movies, series]) => [...movies, ...series].sort((a, b) => b.rating - a.rating))
+    );
+  }
+
+  private fetchMediaList(endpoint: string, params: HttpParams): Observable<TmdbSearchResult[]> {
     return this.http
-      .get<TmdbMultiSearchResponse>(`${this.apiUrl}/search/multi`, {
+      .get<TmdbListResponse>(`${this.apiUrl}${endpoint}`, {
         headers: this.buildHeaders(),
         params
       })
       .pipe(
         map(response =>
           response.results
-            .filter((item): item is TmdbMediaItem =>
-              item.media_type === 'movie' || item.media_type === 'tv'
-            )
+            .filter(this.isMovieOrTv)
             .map(item => this.mapMediaItem(item))
         )
       );
   }
 
-  getDefaultMedia(): Observable<TmdbSearchResult[]> {
+  private discoverByType(
+    mediaType: TmdbMediaType,
+    selectedGenre: string,
+    minRating: number
+  ): Observable<TmdbSearchResult[]> {
+    const endpoint = mediaType === 'movie' ? '/discover/movie' : '/discover/tv';
+    const params = this.buildDiscoverParams(mediaType, selectedGenre, minRating);
+
     return this.http
-      .get<TmdbTrendingResponse>(`${this.apiUrl}/trending/all/week`, {
+      .get<TmdbListResponse>(`${this.apiUrl}${endpoint}`, {
         headers: this.buildHeaders(),
-        params: new HttpParams().set('language', 'fr-FR')
+        params
       })
       .pipe(
         map(response =>
-          response.results
-            .filter((item): item is TmdbMediaItem =>
-              item.media_type === 'movie' || item.media_type === 'tv'
-            )
-            .map(item => this.mapMediaItem(item))
+          response.results.map(item => this.mapMediaItem({ ...item, media_type: mediaType }))
         )
       );
+  }
+
+  private buildDiscoverParams(
+    mediaType: TmdbMediaType,
+    selectedGenre: string,
+    minRating: number
+  ): HttpParams {
+    let params = new HttpParams()
+      .set('language', 'fr-FR')
+      .set('sort_by', 'popularity.desc')
+      .set('vote_count.gte', '100');
+
+    if (mediaType === 'movie') {
+      params = params.set('include_adult', 'false');
+    }
+
+    const genreId = this.getGenreId(mediaType, selectedGenre);
+    if (genreId !== undefined) {
+      params = params.set('with_genres', String(genreId));
+    }
+
+    if (minRating > 0) {
+      params = params.set('vote_average.gte', String(minRating));
+    }
+
+    return params;
+  }
+
+  private buildDetailsParams(): HttpParams {
+    return new HttpParams()
+      .set('language', 'fr-FR')
+      .set('append_to_response', 'credits');
   }
 
   private buildHeaders(): HttpHeaders {
@@ -139,175 +231,44 @@ export class TmdbService {
     });
   }
 
+  private isMovieOrTv(item: TmdbRawItem): item is TmdbMediaItem {
+    return item.media_type === 'movie' || item.media_type === 'tv';
+  }
+
   private mapMediaItem(item: TmdbMediaItem): TmdbSearchResult {
     return {
       id: item.id,
       mediaType: item.media_type,
       title: item.title || item.name || 'Sans titre',
-      posterUrl: item.poster_path
-        ? `${this.imageBaseUrl}${item.poster_path}`
-        : null,
+      posterUrl: this.buildPosterUrl(item.poster_path),
       rating: Number((item.vote_average ?? 0).toFixed(1)),
       year: this.extractYear(item.release_date || item.first_air_date),
       genres: this.mapGenres(item.genre_ids ?? [], item.media_type)
     };
   }
 
-  private mapGenres(
-    genreIds: number[],
-    mediaType: 'movie' | 'tv'
-  ): string[] {
-    const sourceMap =
-      mediaType === 'movie' ? this.movieGenreMap : this.tvGenreMap;
+  private buildPosterUrl(path?: string | null): string | null {
+    return path ? `${this.imageBaseUrl}${path}` : null;
+  }
 
+  private mapGenres(genreIds: number[], mediaType: TmdbMediaType): string[] {
+    const genreMap = this.genreNamesByType[mediaType];
     const genres = genreIds
-      .map(id => sourceMap[id])
-      .filter((genre): genre is string => !!genre);
+      .map(id => genreMap[id])
+      .filter((genre): genre is string => Boolean(genre));
 
     return [...new Set(genres)];
   }
 
+  private getGenreId(mediaType: TmdbMediaType, genre: string): number | undefined {
+    if (genre === 'Tous') {
+      return undefined;
+    }
+
+    return this.genreIdsByType[mediaType][genre];
+  }
+
   private extractYear(date?: string): string {
-    if (!date || date.length < 4) {
-      return '';
-    }
-
-    return date.slice(0, 4);
-  }
-
-  getMovieDetails(id: string): Observable<any> {
-    const params = new HttpParams()
-      .set('language', 'fr-FR')
-      .set('append_to_response', 'credits');
-
-    return this.http.get<any>(`${this.apiUrl}/movie/${id}`, {
-      headers: this.buildHeaders(),
-      params
-    });
-  }
-
-  getTvDetails(id: string): Observable<any> {
-    const params = new HttpParams()
-      .set('language', 'fr-FR')
-      .set('append_to_response', 'credits');
-
-    return this.http.get<any>(`${this.apiUrl}/tv/${id}`, {
-      headers: this.buildHeaders(),
-      params
-    });
-  }
-
-  getTvSeasonDetails(seriesId: string, seasonNumber: number): Observable<any> {
-  const params = new HttpParams().set('language', 'fr-FR');
-
-  return this.http.get<any>(`${this.apiUrl}/tv/${seriesId}/season/${seasonNumber}`, {
-    headers: this.buildHeaders(),
-    params
-  });
-}
-
-    discoverMedia(
-    selectedType: string,
-    selectedGenre: string,
-    minRating: number
-  ): Observable<TmdbSearchResult[]> {
-    const genreId = this.genreToTmdbId[selectedGenre];
-
-    const buildMovieParams = (): HttpParams => {
-      let params = new HttpParams()
-        .set('language', 'fr-FR')
-        .set('include_adult', 'false')
-        .set('sort_by', 'popularity.desc')
-        .set('vote_count.gte', '100');
-
-      if (genreId) {
-        params = params.set('with_genres', String(genreId));
-      }
-
-      if (minRating > 0) {
-        params = params.set('vote_average.gte', String(minRating));
-      }
-
-      return params;
-    };
-
-    const buildTvParams = (): HttpParams => {
-      let params = new HttpParams()
-        .set('language', 'fr-FR')
-        .set('sort_by', 'popularity.desc')
-        .set('vote_count.gte', '100');
-
-      if (genreId) {
-        params = params.set('with_genres', String(genreId));
-      }
-
-      if (minRating > 0) {
-        params = params.set('vote_average.gte', String(minRating));
-      }
-
-      return params;
-    };
-
-    if (selectedType === 'Film') {
-      return this.http
-        .get<TmdbDiscoverResponse>(`${this.apiUrl}/discover/movie`, {
-          headers: this.buildHeaders(),
-          params: buildMovieParams()
-        })
-        .pipe(
-          map(response =>
-            response.results.map(item =>
-              this.mapMediaItem({ ...item, media_type: 'movie' })
-            )
-          )
-        );
-    }
-
-    if (selectedType === 'Série') {
-      return this.http
-        .get<TmdbDiscoverResponse>(`${this.apiUrl}/discover/tv`, {
-          headers: this.buildHeaders(),
-          params: buildTvParams()
-        })
-        .pipe(
-          map(response =>
-            response.results.map(item =>
-              this.mapMediaItem({ ...item, media_type: 'tv' })
-            )
-          )
-        );
-    }
-
-    const movieRequest = this.http.get<TmdbDiscoverResponse>(
-      `${this.apiUrl}/discover/movie`,
-      {
-        headers: this.buildHeaders(),
-        params: buildMovieParams()
-      }
-    );
-
-    const tvRequest = this.http.get<TmdbDiscoverResponse>(
-      `${this.apiUrl}/discover/tv`,
-      {
-        headers: this.buildHeaders(),
-        params: buildTvParams()
-      }
-    );
-
-    return forkJoin([movieRequest, tvRequest]).pipe(
-      map(([movies, series]) => {
-        const mappedMovies = movies.results.map(item =>
-          this.mapMediaItem({ ...item, media_type: 'movie' })
-        );
-
-        const mappedSeries = series.results.map(item =>
-          this.mapMediaItem({ ...item, media_type: 'tv' })
-        );
-
-        return [...mappedMovies, ...mappedSeries].sort(
-          (a, b) => b.rating - a.rating
-        );
-      })
-    );
+    return date && date.length >= 4 ? date.slice(0, 4) : '';
   }
 }

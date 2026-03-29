@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import { TmdbService } from '../../services/tmdb.service';
 import { TmdbSearchResult } from '../../models/tmdb-search-result.model';
@@ -43,82 +44,45 @@ export class SearchPage implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.refreshMedia();
+    this.loadMedia();
   }
 
   onSearchInput(event: Event): void {
     const input = event.target as HTMLInputElement | null;
-    const value = input?.value?.trim() ?? '';
+    this.query = input?.value?.trim() ?? '';
 
-    this.query = value;
-
-    if (value.length === 0) {
-      this.refreshMedia();
+    if (this.query.length === 0) {
+      this.loadMedia();
       return;
     }
 
-    if (value.length < 2) {
-      this.allResults = [];
-      this.filteredResults = [];
-      this.loading = false;
+    if (this.query.length < 2) {
       this.hasSearched = true;
+      this.clearResults();
       return;
     }
 
-    this.loading = true;
-    this.hasSearched = true;
-
-    this.tmdbService.searchMedia(value).subscribe({
-      next: data => {
-        this.allResults = data;
-        this.applyFilters();
-        this.loading = false;
-      },
-      error: error => {
-        console.error('Erreur TMDB :', error);
-        this.allResults = [];
-        this.filteredResults = [];
-        this.loading = false;
-      }
-    });
+    this.loadMedia();
   }
 
   toggleFilters(): void {
     this.showFilters = !this.showFilters;
   }
 
-  selectType(filter: string): void {
-    this.selectedType = filter;
-
-    if (this.query.length === 0) {
-      this.refreshMedia();
-      return;
-    }
-
-    this.applyFilters();
+  selectType(type: string): void {
+    this.selectedType = type;
+    this.loadMedia();
   }
 
   selectGenre(genre: string): void {
     this.selectedGenre = genre;
-
-    if (this.query.length === 0) {
-      this.refreshMedia();
-      return;
-    }
-
-    this.applyFilters();
+    this.loadMedia();
   }
 
   onMinRatingChange(event: Event): void {
     const input = event.target as HTMLInputElement | null;
     this.minRating = Number(input?.value ?? 0);
-
-    if (this.query.length === 0) {
-      this.refreshMedia();
-      return;
-    }
-
-    this.applyFilters();
+    this.loadMedia();
   }
 
   getTypeLabel(mediaType: 'movie' | 'tv'): string {
@@ -143,52 +107,82 @@ export class SearchPage implements OnInit {
     );
   }
 
-   private refreshMedia(): void {
-    if (this.hasActiveFilters()) {
-      this.loading = true;
-      this.hasSearched = false;
+  getActiveFiltersLabel(): string {
+    const parts: string[] = [];
 
-      this.tmdbService.discoverMedia(
-        this.selectedType,
-        this.selectedGenre,
-        this.minRating
-      ).subscribe({
-        next: data => {
-          this.allResults = data;
-          this.filteredResults = data;
-          this.loading = false;
-        },
-        error: error => {
-          console.error('Erreur TMDB :', error);
-          this.allResults = [];
-          this.filteredResults = [];
-          this.loading = false;
-        }
-      });
+    if (this.selectedType !== 'Tous') {
+      parts.push(this.selectedType);
+    }
 
+    if (this.selectedGenre !== 'Tous') {
+      parts.push(this.selectedGenre);
+    }
+
+    if (this.minRating > 0) {
+      parts.push(`${this.minRating} ★`);
+    }
+
+    return parts.join(', ');
+  }
+
+  async addMedia(event: Event, item: TmdbSearchResult): Promise<void> {
+    event.stopPropagation();
+
+    if (this.isAlreadySaved(item)) {
+      await this.watchlistService.removeById(String(item.id));
       return;
     }
 
-    this.loadDefaultMedia();
+    await this.watchlistService.addFromTmdb(item);
   }
 
-  private loadDefaultMedia(): void {
-    this.loading = true;
-    this.hasSearched = false;
+  private loadMedia(): void {
+    if (this.query.length > 0 && this.query.length < 2) {
+      this.hasSearched = true;
+      this.clearResults();
+      return;
+    }
 
-    this.tmdbService.getDefaultMedia().subscribe({
-      next: data => {
-        this.allResults = data;
-        this.applyFilters();
-        this.loading = false;
-      },
-      error: error => {
-        console.error('Erreur TMDB :', error);
-        this.allResults = [];
-        this.filteredResults = [];
-        this.loading = false;
-      }
+    this.loading = true;
+    this.hasSearched = this.query.length >= 2;
+
+    this.getMediaSource().subscribe({
+      next: results => this.handleSuccess(results),
+      error: error => this.handleError(error)
     });
+  }
+
+  private getMediaSource(): Observable<TmdbSearchResult[]> {
+    if (this.query.length >= 2) {
+      return this.tmdbService.searchMedia(this.query);
+    }
+
+    if (this.hasActiveFilters()) {
+      return this.tmdbService.discoverMedia(
+        this.selectedType,
+        this.selectedGenre,
+        this.minRating
+      );
+    }
+
+    return this.tmdbService.getDefaultMedia();
+  }
+
+  private handleSuccess(results: TmdbSearchResult[]): void {
+    this.allResults = results;
+    this.applyFilters();
+    this.loading = false;
+  }
+
+  private handleError(error: unknown): void {
+    console.error('Erreur TMDB :', error);
+    this.clearResults();
+    this.loading = false;
+  }
+
+  private clearResults(): void {
+    this.allResults = [];
+    this.filteredResults = [];
   }
 
   private applyFilters(): void {
@@ -206,34 +200,5 @@ export class SearchPage implements OnInit {
 
       return matchesType && matchesGenre && matchesRating;
     });
-  }
-
-  async addMedia(event: Event, item: TmdbSearchResult): Promise<void> {
-    event.stopPropagation();
-
-    if (this.isAlreadySaved(item)) {
-      await this.watchlistService.removeTmdbItem(item);
-      return;
-    }
-
-    await this.watchlistService.addFromTmdb(item);
-  }
-
-  getActiveFiltersLabel(): string {
-    const parts: string[] = [];
-
-    if (this.selectedType !== 'Tous') {
-      parts.push(this.selectedType);
-    }
-
-    if (this.selectedGenre !== 'Tous') {
-      parts.push(this.selectedGenre);
-    }
-
-    if (this.minRating > 0) {
-      parts.push(`${this.minRating} ★`);
-    }
-
-    return parts.join(', ');
   }
 }
